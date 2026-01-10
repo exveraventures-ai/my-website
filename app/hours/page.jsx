@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Footer from '../components/Footer'
+import HeatMap from '../components/HeatMap'
 
 // ============================================================================
 // STYLE DEFINITIONS - MUST BE BEFORE COMPONENT
@@ -153,10 +154,24 @@ export default function Hours() {
   const [clockedIn, setClockedIn] = useState(false)
   const [clockInTime, setClockInTime] = useState(null)
   const [partialEntry, setPartialEntry] = useState(null)
+  const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
     document.title = 'Burnout IQ - Working Hours'
   }, [])
+
+  // Real-time timer when clocked in
+  useEffect(() => {
+    let interval = null
+    if (clockedIn) {
+      interval = setInterval(() => {
+        setCurrentTime(new Date())
+      }, 1000)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [clockedIn])
 
   useEffect(() => {
     checkUserAndFetch()
@@ -484,6 +499,137 @@ export default function Hours() {
       checkUserAndFetch()
       setTimeout(() => setMessage(''), 3000)
     }
+  }
+
+  // ============================================================================
+  // CLOCK-IN/OUT FUNCTIONALITY
+  // ============================================================================
+  const handleClockIn = async () => {
+    if (clockedIn) {
+      setMessage('Error: Already clocked in. Please clock out first.')
+      return
+    }
+
+    if (!userId) {
+      setMessage('Error: User not found')
+      return
+    }
+
+    const today = new Date().toISOString().split('T')[0]
+    const now = new Date()
+    const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+
+    // Check if entry already exists for today
+    const { data: existingEntry } = await supabase
+      .from('Work_Logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('Date', today)
+      .single()
+
+    if (existingEntry && existingEntry['End Time']) {
+      const confirmed = window.confirm('An entry already exists for today. Do you want to overwrite it?')
+      if (!confirmed) return
+
+      await supabase
+        .from('Work_Logs')
+        .delete()
+        .eq('user_id', userId)
+        .eq('Date', today)
+    }
+
+    // Create or update partial entry
+    const { data, error } = await supabase
+      .from('Work_Logs')
+      .upsert([{
+        Date: today,
+        'Start Time': currentTimeStr,
+        'End Time': null,
+        adjustment: 0,
+        hours: 0,
+        user_id: userId
+      }], {
+        onConflict: 'user_id,Date'
+      })
+      .select()
+      .single()
+
+    if (error) {
+      setMessage(`Error: ${error.message}`)
+      console.error('Clock-in error:', error)
+    } else {
+      setClockedIn(true)
+      setClockInTime(currentTimeStr)
+      setPartialEntry(data)
+      setMessage('✓ Clocked in successfully')
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const handleClockOut = async () => {
+    if (!clockedIn || !partialEntry) {
+      setMessage('Error: Not clocked in')
+      return
+    }
+
+    if (!userId) {
+      setMessage('Error: User not found')
+      return
+    }
+
+    const now = new Date()
+    const endTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+    const startTimeStr = clockInTime || partialEntry['Start Time']
+    
+    if (!startTimeStr) {
+      setMessage('Error: Start time not found')
+      return
+    }
+
+    const totalHours = calculateHours(startTimeStr, endTimeStr, 0)
+
+    const { error } = await supabase
+      .from('Work_Logs')
+      .update({
+        'End Time': endTimeStr,
+        hours: totalHours
+      })
+      .eq('user_id', userId)
+      .eq('Date', partialEntry.Date)
+
+    if (error) {
+      setMessage(`Error: ${error.message}`)
+      console.error('Clock-out error:', error)
+    } else {
+      setClockedIn(false)
+      setClockInTime(null)
+      setPartialEntry(null)
+      setMessage('✓ Clocked out successfully')
+      checkUserAndFetch()
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  // Calculate elapsed time for timer display
+  const getElapsedTime = () => {
+    if (!clockedIn || !clockInTime) return '00:00:00'
+    
+    const now = currentTime
+    const [startHour, startMin] = clockInTime.split(':').map(Number)
+    const startDate = new Date(now)
+    startDate.setHours(startHour, startMin, 0, 0)
+    
+    // If clock in was yesterday, adjust
+    if (startDate > now) {
+      startDate.setDate(startDate.getDate() - 1)
+    }
+    
+    const diffMs = now - startDate
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
+    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000)
+    
+    return `${diffHours.toString().padStart(2, '0')}:${diffMinutes.toString().padStart(2, '0')}:${diffSeconds.toString().padStart(2, '0')}`
   }
 
   const calculateL7DTotal = (targetDate, allLogs) => {
@@ -820,90 +966,286 @@ export default function Hours() {
   }
 
   // ============================================================================
-  // COMBINED BURNOUT RISK SCORE
+  // HELPER FUNCTIONS FOR BURNOUT V2
+  // ============================================================================
+  
+  // Find longest recent break (>7 days with <2h work per day)
+  const findLongestRecentBreak = () => {
+    if (workLogs.length === 0) return { days: 0, ended: null }
+    
+    const today = new Date()
+    const ninetyDaysAgo = new Date(today)
+    ninetyDaysAgo.setDate(today.getDate() - 90)
+    
+    // Filter completed entries
+    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
+    
+    // Build map of all dates in last 90 days
+    const dateMap = new Map()
+    for (let d = new Date(ninetyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0]
+      const log = sortedLogs.find(l => l.Date === dateStr)
+      const hours = log ? (log.hours || 0) : 0
+      dateMap.set(dateStr, hours)
+    }
+    
+    // Find longest consecutive period with <2h per day
+    let longestBreak = 0
+    let currentBreak = 0
+    let breakEndDate = null
+    
+    const dates = Array.from(dateMap.keys()).sort()
+    for (const dateStr of dates) {
+      const hours = dateMap.get(dateStr)
+      if (hours < 2) {
+        currentBreak++
+        if (currentBreak > longestBreak) {
+          longestBreak = currentBreak
+          breakEndDate = dateStr
+        }
+      } else {
+        currentBreak = 0
+      }
+    }
+    
+    return { days: longestBreak, ended: breakEndDate }
+  }
+  
+  // Calculate routine SD (standard deviation of start/end times over L30D)
+  const calculateRoutineSD = () => {
+    if (workLogs.length === 0) return { startSD: 0, endSD: 0, combinedSD: 0 }
+    
+    const today = new Date()
+    const thirtyDaysAgo = new Date(today)
+    thirtyDaysAgo.setDate(today.getDate() - 30)
+    
+    const completedLogs = workLogs.filter(log => {
+      if (!log['Start Time'] || !log['End Time']) return false
+      const logDate = new Date(log.Date)
+      return logDate >= thirtyDaysAgo && logDate <= today
+    })
+    
+    if (completedLogs.length === 0) return { startSD: 0, endSD: 0, combinedSD: 0 }
+    
+    // Convert times to minutes
+    const startTimes = completedLogs.map(log => {
+      const [h, m] = log['Start Time'].split(':').map(Number)
+      return h * 60 + m
+    })
+    const endTimes = completedLogs.map(log => {
+      const [h, m] = log['End Time'].split(':').map(Number)
+      return h * 60 + m
+    })
+    
+    // Calculate mean
+    const startMean = startTimes.reduce((a, b) => a + b, 0) / startTimes.length
+    const endMean = endTimes.reduce((a, b) => a + b, 0) / endTimes.length
+    
+    // Calculate variance
+    const startVariance = startTimes.reduce((sum, t) => sum + Math.pow(t - startMean, 2), 0) / startTimes.length
+    const endVariance = endTimes.reduce((sum, t) => sum + Math.pow(t - endMean, 2), 0) / endTimes.length
+    
+    // Calculate SD (in hours)
+    const startSD = Math.sqrt(startVariance) / 60
+    const endSD = Math.sqrt(endVariance) / 60
+    const combinedSD = (startSD + endSD) / 2
+    
+    return { startSD: startSD.toFixed(1), endSD: endSD.toFixed(1), combinedSD: combinedSD.toFixed(1) }
+  }
+  
+  // Calculate high-streak days (consecutive >9h days)
+  const calculateHighStreak = () => {
+    if (workLogs.length === 0) return { currentStreak: 0, maxStreak: 0 }
+    
+    const completedLogs = workLogs
+      .filter(log => log['Start Time'] && log['End Time'])
+      .sort((a, b) => new Date(b.Date) - new Date(a.Date))
+    
+    let currentStreak = 0
+    let maxStreak = 0
+    let tempStreak = 0
+    
+    for (const log of completedLogs) {
+      const hours = parseFloat(log.hours || 0)
+      if (hours > 9) {
+        tempStreak++
+        if (currentStreak === 0) currentStreak = tempStreak
+        if (tempStreak > maxStreak) maxStreak = tempStreak
+      } else {
+        tempStreak = 0
+        if (currentStreak > 0 && tempStreak === 0) {
+          // Streak broken, stop counting current
+          break
+        }
+      }
+    }
+    
+    return { currentStreak, maxStreak }
+  }
+  
+  // Days since last <6h day (recovery day)
+  const calculateRecoveryDays = () => {
+    if (workLogs.length === 0) return null
+    
+    const completedLogs = workLogs
+      .filter(log => log['Start Time'] && log['End Time'])
+      .sort((a, b) => new Date(b.Date) - new Date(a.Date))
+    
+    for (let i = 0; i < completedLogs.length; i++) {
+      const hours = parseFloat(completedLogs[i].hours || 0)
+      if (hours < 6) {
+        const logDate = new Date(completedLogs[i].Date)
+        const today = new Date()
+        const diffTime = today - logDate
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+        return diffDays
+      }
+    }
+    
+    return null // No recovery day found
+  }
+
+  // ============================================================================
+  // BURNOUT RISK SCORE V2
   // ============================================================================
   const calculateBurnoutRiskScore = () => {
     try {
-      const r4w = calculateRolling4WeekAverage()
-      const redEye = calculateRedEyeRatio()
-      const weekends = calculateProtectedWeekends()
+      if (workLogs.length === 0) return null
       
-      if (!r4w || !redEye || !weekends) return null
+      const today = new Date()
+      const sevenDaysAgo = new Date(today)
+      sevenDaysAgo.setDate(today.getDate() - 7)
+      const ninetyDaysAgo = new Date(today)
+      ninetyDaysAgo.setDate(today.getDate() - 90)
       
-      let riskScore = 0
-      
-      const avg = parseFloat(r4w.average || 0)
-      if (avg > 80) riskScore += 40
-      else if (avg > 75) riskScore += 30
-      else if (avg > 60) riskScore += 15
-      else riskScore += 5
-      
-      const redEyeRatioStr = redEye.ratio || '0'
-      const redEyeVal = parseFloat(redEyeRatioStr.replace('%', '')) || 0
-      if (redEyeVal > 20) riskScore += 35
-      else if (redEyeVal > 15) riskScore += 25
-      else if (redEyeVal > 10) riskScore += 15
-      else riskScore += 5
-      
-      const daysNoBreak = weekends.daysSinceLastBreak || 0
-      const longestBreak = weekends.longestRecentBreak || 0
-
-      // Give massive credit for recent extended breaks
-      if (longestBreak >= 7) {
-        riskScore += 0  // 7+ day break = near-zero recovery risk
-      } else if (longestBreak >= 4) {
-        riskScore += Math.min(15, daysNoBreak * 0.5)  // 4-6 day break = low risk
-      } else if (longestBreak >= 2) {
-        riskScore += Math.min(20, daysNoBreak * 1)  // 2-3 day break = moderate risk
-      } else if (daysNoBreak > 21) {
-        riskScore += 25  // No breaks + 21+ days = critical
-      } else if (daysNoBreak > 14) {
-        riskScore += 20
-      } else if (daysNoBreak > 7) {
-        riskScore += 10
-      } else {
-        riskScore += 5
+      // Check for extended break (>7 days <2h) → full reset
+      const longestBreak = findLongestRecentBreak()
+      if (longestBreak.days > 7) {
+        return {
+          riskScore: 0,
+          overallStatus: 'RECOVERED 🟢',
+          overallColor: '#34C759',
+          urgency: `🟢 Excellent: ${longestBreak.days}-day recovery break detected. Full system reset.`,
+          breakdown: {
+            intensity: 0,
+            workload: 0,
+            circadian: 0,
+            routine: 0
+          },
+          recoveryBonus: longestBreak.days
+        }
       }
       
-      let overallStatus = 'Healthy'
+      // Calculate L7D and L90D
+      const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+      
+      const all7Days = []
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() - i)
+        all7Days.push(date.toISOString().split('T')[0])
+      }
+      const all90Days = []
+      for (let i = 0; i < 90; i++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() - i)
+        all90Days.push(date.toISOString().split('T')[0])
+      }
+      
+      const loggedDaysMap7 = {}
+      const loggedDaysMap90 = {}
+      completedLogs.forEach(log => {
+        const logDate = new Date(log.Date)
+        if (logDate >= sevenDaysAgo && logDate <= today) {
+          loggedDaysMap7[log.Date] = log.hours || 0
+        }
+        if (logDate >= ninetyDaysAgo && logDate <= today) {
+          loggedDaysMap90[log.Date] = log.hours || 0
+        }
+      })
+      
+      const total7 = all7Days.reduce((sum, date) => sum + (loggedDaysMap7[date] || 0), 0)
+      const total90 = all90Days.reduce((sum, date) => sum + (loggedDaysMap90[date] || 0), 0)
+      const l7dAvg = total7 / 7
+      const l90dAvg = total90 / 90
+      
+      // Calculate RecentIntensity with streak multiplier
+      const highStreak = calculateHighStreak()
+      const streakMult = highStreak.currentStreak >= 3 ? 1.5 : 1.0
+      const recentIntensity = l90dAvg > 0 ? (l7dAvg / l90dAvg) * streakMult : 1.0
+      
+      // Calculate components
+      const intensityComponent = Math.min(40, recentIntensity * 40)
+      const l7dTargetRatio = weeklyTarget > 0 ? (l7dAvg * 7) / weeklyTarget : 1.0
+      const workloadComponent = Math.min(20, l7dTargetRatio * 20)
+      
+      // Red-eye weeks (weeks with >15% late-night work)
+      const redEye = calculateRedEyeRatio()
+      const redEyeVal = redEye ? parseFloat(redEye.ratio.replace('%', '')) : 0
+      const circadianComponent = redEyeVal > 15 ? 20 : (redEyeVal > 10 ? 15 : (redEyeVal > 5 ? 10 : 5))
+      
+      // Routine SD component
+      const routineSD = calculateRoutineSD()
+      const routineSDVal = parseFloat(routineSD.combinedSD || 0)
+      const routineComponent = routineSDVal > 2 ? 20 : (routineSDVal > 1 ? 15 : (routineSDVal > 0.5 ? 10 : 5))
+      
+      // Holiday bonus (longest break >14 days → -50pts)
+      let holidayBonus = 0
+      if (longestBreak.days > 14) {
+        holidayBonus = -50
+      } else if (longestBreak.days > 7) {
+        holidayBonus = -25
+      }
+      
+      // Calculate score
+      let riskScore = intensityComponent + workloadComponent + circadianComponent + routineComponent + holidayBonus
+      riskScore = Math.max(0, Math.min(100, riskScore))
+      
+      // Determine status and color
+      let overallStatus = 'SUSTAINABLE'
       let overallColor = '#34C759'
       let urgency = ''
       
       if (riskScore >= 85) {
-        overallStatus = 'CRITICAL BURNOUT RISK'
+        overallStatus = 'CRITICAL 🔴'
         overallColor = '#FF3B30'
-        urgency = '🔴 IMMEDIATE: Combined metrics indicate high burnout risk. Take recovery action within 48 hours.'
-      } else if (riskScore >= 65) {
-        overallStatus = 'HIGH RISK'
-        overallColor = '#FF3B30'
-        urgency = '🔴 ALERT: Multiple burnout indicators. Schedule recovery. Avoid taking on additional commitments.'
-      } else if (riskScore >= 40) {
-        overallStatus = 'ELEVATED'
+        const recoveryDate = new Date(today)
+        recoveryDate.setDate(today.getDate() + 2)
+        urgency = `🔴 CRITICAL: L7D ${l7dAvg.toFixed(1)}h/day. 48h recovery by ${recoveryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}. >80h/wk=2x errors (JAMA).`
+      } else if (riskScore >= 60) {
+        overallStatus = 'HIGH RISK 🟠'
         overallColor = '#FF9500'
-        urgency = '🟡 CAUTION: Burnout metrics elevated. Monitor closely. Plan recovery within 1-2 weeks.'
-      } else if (riskScore >= 20) {
-        overallStatus = 'MODERATE'
-        overallColor = '#007AFF'
-        urgency = '🔵 WATCH: Some elevation in metrics. Continue monitoring. Maintain recovery practices.'
+        urgency = `🟠 ALERT: Multiple burnout indicators. Delay DD. Lock weekend. L7D ${(l7dAvg * 7).toFixed(1)}h/wk critical for PE finance.`
+      } else if (riskScore >= 30) {
+        overallStatus = 'ELEVATED 🟡'
+        overallColor = '#FF9500'
+        urgency = `🟡 CAUTION: Metrics elevated. Monitor closely. Plan recovery. Sleep debt=1.5x errors.`
       } else {
-        overallStatus = 'SUSTAINABLE'
+        overallStatus = 'SUSTAINABLE 🟢'
         overallColor = '#34C759'
-        urgency = '🟢 GOOD: Metrics within healthy range. Maintain current rhythm.'
+        urgency = `🟢 GOOD: Metrics within healthy range. Maintain current rhythm.`
       }
       
       return {
-        riskScore,
+        riskScore: Math.round(riskScore),
         overallStatus,
         overallColor,
         urgency,
         breakdown: {
-          workloadScore: parseFloat(r4w.average || 0),
-          circadianScore: parseFloat((redEye.ratio || '0').replace('%', '')) || 0,
-          recoveryScore: daysNoBreak
-        }
+          intensity: intensityComponent.toFixed(1),
+          workload: workloadComponent.toFixed(1),
+          circadian: circadianComponent.toFixed(1),
+          routine: routineComponent.toFixed(1),
+          l7d: (l7dAvg * 7).toFixed(1),
+          recentIntensity: recentIntensity.toFixed(2),
+          streakMult,
+          routineSD: routineSDVal.toFixed(1)
+        },
+        recoveryBonus: holidayBonus
       }
     } catch (error) {
-      console.error('Error calculating burnout risk score:', error)
+      console.error('Error calculating burnout risk score v2:', error)
       return null
     }
   }
@@ -1514,6 +1856,7 @@ export default function Hours() {
 
   // Call all calculation functions with error handling
   let metrics, weeklyStats, loadIntensityIndex, weeklyGoalPace, r4w, redEye, weekends, burnout, chartData, dayOfWeekData, loadIntensityData, weeklyProgressData
+  let routineSD, highStreak, recoveryDays
   
   try {
     metrics = calculateAllMetrics()
@@ -1524,6 +1867,9 @@ export default function Hours() {
     redEye = calculateRedEyeRatio()
     weekends = calculateProtectedWeekends()
     burnout = calculateBurnoutRiskScore()
+    routineSD = calculateRoutineSD()
+    highStreak = calculateHighStreak()
+    recoveryDays = calculateRecoveryDays()
     chartData = getFilteredData()
     dayOfWeekData = getDayOfWeekData()
     loadIntensityData = getLoadIntensityChartData()
@@ -1539,6 +1885,9 @@ export default function Hours() {
     redEye = null
     weekends = null
     burnout = null
+    routineSD = null
+    highStreak = null
+    recoveryDays = null
     chartData = []
     dayOfWeekData = []
     loadIntensityData = []
@@ -1778,6 +2127,97 @@ export default function Hours() {
             }}>
               {userProfile.position} · {userProfile.company} · {userProfile.region}
             </p>
+          )}
+        </div>
+
+        {/* Clock-In/Out Section */}
+        <div style={{ 
+          backgroundColor: 'white', 
+          padding: '40px', 
+          borderRadius: '16px',
+          marginBottom: '30px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+          border: clockedIn ? '3px solid #34C759' : '1px solid #e8e8ed'
+        }}>
+          <h2 style={{ 
+            fontSize: '28px',
+            fontWeight: '600',
+            margin: '0 0 24px 0',
+            color: '#1d1d1f'
+          }}>
+            {clockedIn ? '⏰ Currently Clocked In' : '⏱️ Quick Clock-In'}
+          </h2>
+          
+          {clockedIn ? (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                fontSize: '72px',
+                fontWeight: '700',
+                color: '#34C759',
+                marginBottom: '16px',
+                fontFamily: 'monospace',
+                letterSpacing: '4px'
+              }}>
+                {getElapsedTime()}
+              </div>
+              <p style={{
+                fontSize: '16px',
+                color: '#6e6e73',
+                marginBottom: '24px'
+              }}>
+                Started at {clockInTime} today
+              </p>
+              <button
+                onClick={handleClockOut}
+                style={{
+                  padding: '18px 48px',
+                  backgroundColor: '#FF3B30',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'background-color 0.2s',
+                  boxShadow: '0 4px 12px rgba(255,59,48,0.3)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FF2D20'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF3B30'}
+              >
+                🛑 End Work Day
+              </button>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{
+                fontSize: '17px',
+                color: '#6e6e73',
+                marginBottom: '24px'
+              }}>
+                Quick way to track your work day. Click below to start.
+              </p>
+              <button
+                onClick={handleClockIn}
+                style={{
+                  padding: '18px 48px',
+                  backgroundColor: '#34C759',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'background-color 0.2s',
+                  boxShadow: '0 4px 12px rgba(52,199,89,0.3)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#30D158'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#34C759'}
+              >
+                ▶️ Start Work Day
+              </button>
+            </div>
           )}
         </div>
 
@@ -2028,9 +2468,24 @@ export default function Hours() {
               <div style={{ fontSize: '17px', fontWeight: '500', marginBottom: '8px' }}>
                 {isPro ? burnout.overallStatus : 'Pro feature'}
               </div>
-              <div style={{ fontSize: '15px', lineHeight: '1.6' }}>
+              <div style={{ fontSize: '15px', lineHeight: '1.6', marginBottom: '12px' }}>
                 {isPro ? burnout.urgency : 'Upgrade to Pro to see your burnout risk assessment'}
               </div>
+              {isPro && burnout.breakdown && (
+                <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                    <div>Intensity: {burnout.breakdown.intensity}pts</div>
+                    <div>Workload: {burnout.breakdown.workload}pts</div>
+                    <div>Circadian: {burnout.breakdown.circadian}pts</div>
+                    <div>Routine: {burnout.breakdown.routine}pts</div>
+                  </div>
+                  {burnout.recoveryBonus && burnout.recoveryBonus < 0 && (
+                    <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>
+                      Holiday Bonus: {burnout.recoveryBonus}pts
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           
@@ -2213,6 +2668,33 @@ export default function Hours() {
                 sublabel={`${weeklyGoalPace.paceStatus} (${weeklyGoalPace.delta > 0 ? '+' : ''}${weeklyGoalPace.delta} hrs)`}
                 color={weeklyGoalPace.paceColor}
                 highlight
+              />
+            )}
+            {routineSD && isPro && (
+              <MetricCard 
+                label="Routine SD" 
+                value={routineSD.combinedSD + 'h'}
+                sublabel={parseFloat(routineSD.combinedSD) < 1 ? '🟢 Stable' : parseFloat(routineSD.combinedSD) > 2 ? '🔴 Variable' : '🟡 Moderate'}
+                color={parseFloat(routineSD.combinedSD) < 1 ? '#34C759' : parseFloat(routineSD.combinedSD) > 2 ? '#FF3B30' : '#FF9500'}
+                highlight={parseFloat(routineSD.combinedSD) > 2}
+              />
+            )}
+            {highStreak && isPro && (
+              <MetricCard 
+                label="High-Streak" 
+                value={highStreak.currentStreak}
+                sublabel={`Consecutive >9h days (max: ${highStreak.maxStreak})`}
+                color={highStreak.currentStreak >= 3 ? '#FF9500' : '#007AFF'}
+                highlight={highStreak.currentStreak >= 3}
+              />
+            )}
+            {recoveryDays !== null && isPro && (
+              <MetricCard 
+                label="Recovery Days" 
+                value={recoveryDays}
+                sublabel={recoveryDays > 14 ? '🟡 Schedule <6h day' : recoveryDays > 7 ? '🟠 Monitor' : '🟢 Recent recovery'}
+                color={recoveryDays > 14 ? '#FF9500' : recoveryDays > 7 ? '#FF3B30' : '#34C759'}
+                highlight={recoveryDays > 14}
               />
             )}
           </div>
@@ -2411,6 +2893,54 @@ export default function Hours() {
           )}
         </div>
         )}
+
+        {/* Work Hours Heatmap - L180D Pattern Analysis */}
+        <div style={{ marginBottom: '50px' }}>
+          <div style={{ 
+            backgroundColor: 'white', 
+            padding: '40px', 
+            borderRadius: '16px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+            marginBottom: '30px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <h2 style={{ 
+                  fontSize: '28px',
+                  fontWeight: '600',
+                  margin: '0 0 8px 0',
+                  color: '#1d1d1f'
+                }}>
+                  Work Hours Heatmap (L180D)
+                </h2>
+                <p style={{ 
+                  fontSize: '15px',
+                  color: '#6e6e73',
+                  margin: 0
+                }}>
+                  Average hours worked by day and hour. Aggregated from last 180 days.
+                </p>
+              </div>
+              {isPro && (
+                <a href="/science" style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  transition: 'background-color 0.2s',
+                  whiteSpace: 'nowrap'
+                }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4338CA'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4F46E5'}>
+                  📚 Research Basis
+                </a>
+              )}
+            </div>
+            
+            <HeatMap workLogs={workLogs} isPro={isPro} />
+          </div>
+        </div>
 
         {/* Recent Entries Table */}
         <div id="recent-entries" style={{ 

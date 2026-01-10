@@ -1,9 +1,11 @@
 "use client"
 
 import { supabase } from '../lib/supabase'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Footer from '../components/Footer'
+import HeatMap from '../components/HeatMap'
+import DiffHeatMap, { generateBenchmarkHeatmap } from '../components/DiffHeatMap'
 
 export default function Compare() {
   const router = useRouter()
@@ -11,6 +13,7 @@ export default function Compare() {
   const [userProfile, setUserProfile] = useState(null)
   const [userStats, setUserStats] = useState(null)
   const [cohortStats, setCohortStats] = useState(null)
+  const [workLogs, setWorkLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
 
@@ -24,6 +27,136 @@ export default function Compare() {
     localStorage.removeItem('burnoutiQ_user_id')
     router.push('/login')
   }
+
+  // Calculate user heatmap data from work logs (memoized function)
+  const calculateUserHeatmapData = useCallback((logs) => {
+    if (!logs || logs.length === 0) return null
+    
+    const today = new Date()
+    const oneEightyDaysAgo = new Date(today)
+    oneEightyDaysAgo.setDate(today.getDate() - 180)
+    
+    const completedLogs = logs.filter(log => {
+      if (!log['Start Time'] || !log['End Time']) return false
+      const logDate = new Date(log.Date)
+      return logDate >= oneEightyDaysAgo && logDate <= today
+    })
+
+    if (completedLogs.length === 0) return null
+
+    const buckets = {}
+    const dayNamesByIndex = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const dayNamesOrdered = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    dayNamesByIndex.forEach(day => {
+      buckets[day] = {}
+      for (let h = 0; h < 24; h++) {
+        buckets[day][h] = { totalHours: 0, count: 0, worst: 0, dates: [] }
+      }
+    })
+
+    completedLogs.forEach(log => {
+      const logDate = new Date(log.Date)
+      const dayOfWeek = dayNamesByIndex[logDate.getDay()]
+      const hours = parseFloat(log.hours || 0)
+      
+      if (hours === 0) return
+
+      const [startHour, startMin] = log['Start Time'].split(':').map(Number)
+      const [endHour, endMin] = log['End Time'].split(':').map(Number)
+      
+      let startMinutes = startHour * 60 + startMin
+      let endMinutes = endHour * 60 + endMin
+      
+      if (endMinutes <= startMinutes) {
+        endMinutes += 24 * 60
+      }
+
+      for (let hour = 0; hour < 24; hour++) {
+        const hourStartMinutes = hour * 60
+        const hourEndMinutes = (hour + 1) * 60
+        
+        let overlaps = false
+        if (endMinutes <= 24 * 60) {
+          overlaps = startMinutes < hourEndMinutes && endMinutes > hourStartMinutes
+        } else {
+          overlaps = startMinutes < hourEndMinutes || (endMinutes % (24 * 60)) > hourStartMinutes
+        }
+        
+        if (overlaps) {
+          let overlapStart = Math.max(startMinutes % (24 * 60), hourStartMinutes)
+          let overlapEnd = Math.min(endMinutes % (24 * 60) || (24 * 60), hourEndMinutes)
+          
+          if (overlapStart < overlapEnd) {
+            buckets[dayOfWeek][hour].totalHours += hours
+            buckets[dayOfWeek][hour].count++
+            buckets[dayOfWeek][hour].worst = Math.max(buckets[dayOfWeek][hour].worst, hours)
+            buckets[dayOfWeek][hour].dates.push(log.Date)
+          }
+        }
+      }
+    })
+
+    return dayNamesOrdered.map(day => {
+      return Array.from({ length: 24 }, (_, hour) => {
+        const bucket = buckets[day]?.[hour] || { totalHours: 0, count: 0, worst: 0, dates: [] }
+        const uniqueDays = new Set(bucket.dates).size
+        const avgHours = uniqueDays > 0 ? bucket.totalHours / uniqueDays : 0
+        
+        return {
+          day,
+          hour,
+          avgHours: avgHours.toFixed(1),
+          count: bucket.count,
+          worst: bucket.worst.toFixed(1),
+          uniqueDays,
+          displayHour: `${hour.toString().padStart(2, '0')}:00`
+        }
+      })
+    })
+  }, [])
+
+  // Calculate user heatmap data (recalculated when workLogs change)
+  const userHeatmapData = useMemo(() => {
+    if (!workLogs || workLogs.length === 0) return null
+    return calculateUserHeatmapData(workLogs)
+  }, [workLogs, calculateUserHeatmapData])
+
+  // Calculate worst deviation metric
+  const worstDeviationMetric = useMemo(() => {
+    if (!userHeatmapData) return null
+    
+    try {
+      const benchmarkData = generateBenchmarkHeatmap()
+      let worstDev = null
+      let worstDiff = 0
+      
+      userHeatmapData.forEach((dayRow, dayIdx) => {
+        dayRow.forEach((userCell, hourIdx) => {
+          const benchCell = benchmarkData[dayIdx]?.[hourIdx]
+          const userHours = parseFloat(userCell.avgHours || 0)
+          const benchHours = parseFloat(benchCell?.avgHours || 0)
+          const diff = userHours - benchHours
+          
+          if (Math.abs(diff) > Math.abs(worstDiff)) {
+            worstDiff = diff
+            worstDev = {
+              day: userCell.day,
+              hour: userCell.hour,
+              diff: diff.toFixed(1),
+              userHours: userHours.toFixed(1),
+              benchHours: benchHours.toFixed(1)
+            }
+          }
+        })
+      })
+      
+      return worstDev
+    } catch (error) {
+      console.error('Error calculating worst deviation:', error)
+      return null
+    }
+  }, [userHeatmapData])
 
   const loadUserData = async () => {
     // Check authentication first
@@ -81,12 +214,16 @@ export default function Compare() {
       }
     }
 
-    // Calculate user's stats
+    // Fetch user's work logs for heatmap
     const { data: logs } = await supabase
       .from('Work_Logs')
       .select('*')
       .eq('user_id', storedUserId)
       .order('Date', { ascending: false })
+
+    if (logs) {
+      setWorkLogs(logs)
+    }
 
     if (logs && logs.length > 0) {
       const today = new Date()
@@ -564,7 +701,8 @@ export default function Compare() {
                     backgroundColor: 'white',
                     padding: '40px',
                     borderRadius: '16px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+                    marginBottom: '50px'
                   }}>
                     <h2 style={{
                       fontSize: '24px',
@@ -596,6 +734,252 @@ export default function Compare() {
                         description="Compare your hours to these benchmarks to understand your relative workload"
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Work Hours Heatmap Comparison */}
+                {workLogs && workLogs.length > 0 && (
+                  <div style={{ marginBottom: '50px' }}>
+                    <h2 style={{
+                      fontSize: '28px',
+                      fontWeight: '600',
+                      margin: '0 0 8px 0',
+                      color: '#1d1d1f'
+                    }}>
+                      Work Hours Heatmap Comparison (L180D)
+                    </h2>
+                    <p style={{
+                      fontSize: '15px',
+                      color: '#6e6e73',
+                      margin: '0 0 40px 0'
+                    }}>
+                      Compare your work patterns against PE associate benchmark. Research-based benchmark from industry standards.
+                    </p>
+
+                    {/* Row 1: Your L180D Heatmap */}
+                    <div style={{
+                      backgroundColor: 'white',
+                      padding: '40px',
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+                      marginBottom: '30px'
+                    }}>
+                      <h3 style={{
+                        fontSize: '22px',
+                        fontWeight: '600',
+                        margin: '0 0 8px 0',
+                        color: '#1d1d1f'
+                      }}>
+                        Your Work Pattern
+                      </h3>
+                      <p style={{
+                        fontSize: '14px',
+                        color: '#6e6e73',
+                        margin: '0 0 24px 0'
+                      }}>
+                        Average hours worked by day and hour (last 180 days)
+                      </p>
+                      <HeatMap workLogs={workLogs} isPro={userProfile?.is_pro || false} />
+                    </div>
+
+                    {/* Row 2: PE Benchmark Heatmap */}
+                    {userProfile?.is_pro && (
+                      <div style={{
+                        backgroundColor: 'white',
+                        padding: '40px',
+                        borderRadius: '16px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+                        marginBottom: '30px'
+                      }}>
+                        <h3 style={{
+                          fontSize: '22px',
+                          fontWeight: '600',
+                          margin: '0 0 8px 0',
+                          color: '#1d1d1f'
+                        }}>
+                          PE Associate Benchmark
+                        </h3>
+                        <p style={{
+                          fontSize: '14px',
+                          color: '#6e6e73',
+                          margin: '0 0 24px 0'
+                        }}>
+                          Research-based benchmark: Mon-Thu peak 09-18h (9h avg), Fri 09-16h (7h), weekends &lt;2h ideal
+                        </p>
+                        <HeatMap 
+                          heatmapData={generateBenchmarkHeatmap()} 
+                          isPro={true}
+                        />
+                      </div>
+                    )}
+
+                    {/* Row 3: Diff Heatmap */}
+                    {userProfile?.is_pro && (
+                      <div style={{
+                        backgroundColor: 'white',
+                        padding: '40px',
+                        borderRadius: '16px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+                        marginBottom: '30px'
+                      }}>
+                        <h3 style={{
+                          fontSize: '22px',
+                          fontWeight: '600',
+                          margin: '0 0 8px 0',
+                          color: '#1d1d1f'
+                        }}>
+                          Difference (Your Hours - Benchmark)
+                        </h3>
+                        <p style={{
+                          fontSize: '14px',
+                          color: '#6e6e73',
+                          margin: '0 0 24px 0'
+                        }}>
+                          Blue = under benchmark, Red = over benchmark. Highlights areas where you deviate significantly.
+                        </p>
+                        <DiffHeatMap 
+                          userHeatmapData={userHeatmapData}
+                          benchmarkData={generateBenchmarkHeatmap()}
+                          isPro={userProfile?.is_pro || false}
+                        />
+                      </div>
+                    )}
+
+                    {/* Worst Deviation Metrics */}
+                    {userProfile?.is_pro && worstDeviationMetric && (
+                      <div style={{
+                        backgroundColor: 'white',
+                        padding: '30px 40px',
+                        borderRadius: '16px',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+                        marginBottom: '30px',
+                        border: parseFloat(worstDeviationMetric.diff) > 0 ? '2px solid #FF3B30' : '2px solid #007AFF'
+                      }}>
+                        <h3 style={{
+                          fontSize: '22px',
+                          fontWeight: '600',
+                          margin: '0 0 20px 0',
+                          color: '#1d1d1f'
+                        }}>
+                          Worst Deviation from Benchmark
+                        </h3>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '24px',
+                          flexWrap: 'wrap'
+                        }}>
+                          <div style={{
+                            padding: '20px 28px',
+                            backgroundColor: parseFloat(worstDeviationMetric.diff) > 0 ? '#FFF5F5' : '#E6F2FF',
+                            borderRadius: '12px',
+                            flex: '1 1 300px'
+                          }}>
+                            <div style={{
+                              fontSize: '13px',
+                              color: '#86868b',
+                              fontWeight: '600',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                              marginBottom: '8px'
+                            }}>
+                              Peak Deviation
+                            </div>
+                            <div style={{
+                              fontSize: '32px',
+                              fontWeight: '700',
+                              color: parseFloat(worstDeviationMetric.diff) > 0 ? '#FF3B30' : '#007AFF',
+                              marginBottom: '4px'
+                            }}>
+                              {worstDeviationMetric.day.substring(0, 3)} {worstDeviationMetric.hour.toString().padStart(2, '0')}:00
+                            </div>
+                            <div style={{
+                              fontSize: '24px',
+                              fontWeight: '600',
+                              color: '#1d1d1f'
+                            }}>
+                              {parseFloat(worstDeviationMetric.diff) > 0 ? '+' : ''}{worstDeviationMetric.diff}h {parseFloat(worstDeviationMetric.diff) > 0 ? 'over' : 'under'} benchmark
+                            </div>
+                          </div>
+                          <div style={{
+                            padding: '20px 28px',
+                            backgroundColor: '#f5f5f7',
+                            borderRadius: '12px',
+                            flex: '1 1 300px'
+                          }}>
+                            <div style={{
+                              fontSize: '13px',
+                              color: '#86868b',
+                              fontWeight: '600',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                              marginBottom: '8px'
+                            }}>
+                              Breakdown
+                            </div>
+                            <div style={{
+                              fontSize: '16px',
+                              color: '#1d1d1f',
+                              marginBottom: '8px'
+                            }}>
+                              <strong>You:</strong> {worstDeviationMetric.userHours}h avg
+                            </div>
+                            <div style={{
+                              fontSize: '16px',
+                              color: '#1d1d1f',
+                              marginBottom: '8px'
+                            }}>
+                              <strong>Benchmark:</strong> {worstDeviationMetric.benchHours}h avg
+                            </div>
+                            <div style={{
+                              fontSize: '14px',
+                              color: '#6e6e73',
+                              marginTop: '12px',
+                              paddingTop: '12px',
+                              borderTop: '1px solid #e8e8ed'
+                            }}>
+                              {parseFloat(worstDeviationMetric.diff) > 3 ? 
+                                '🔴 Significant overage - consider workload adjustment' :
+                                parseFloat(worstDeviationMetric.diff) > 0 ?
+                                '🟡 Moderate overage - monitor closely' :
+                                '🔵 Under benchmark - sustainable pace'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pro upgrade prompt for non-Pro users */}
+                    {!userProfile?.is_pro && (
+                      <div style={{
+                        backgroundColor: '#f5f5f7',
+                        padding: '40px',
+                        borderRadius: '16px',
+                        border: '2px solid #d2d2d7',
+                        textAlign: 'center',
+                        marginBottom: '30px',
+                        opacity: 0.6
+                      }}>
+                        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔒</div>
+                        <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#86868b', marginBottom: '12px' }}>
+                          Pro Feature
+                        </h3>
+                        <p style={{ fontSize: '16px', color: '#6e6e73', marginBottom: '24px' }}>
+                          Unlock benchmark comparison and difference heatmaps to see how your patterns compare to PE associate standards.
+                        </p>
+                        <a href="/upgrade" style={{
+                          padding: '12px 24px',
+                          backgroundColor: '#4F46E5',
+                          color: 'white',
+                          textDecoration: 'none',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: '600'
+                        }}>
+                          Upgrade to Pro - £1.99/month
+                        </a>
+                      </div>
+                    )}
                   </div>
                 )}
               </>

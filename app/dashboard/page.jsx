@@ -508,56 +508,141 @@ export default function Dashboard() {
     }
   }
   // ============================================================================
-  // COMBINED BURNOUT RISK SCORE
+  // BURNOUT RISK SCORE V2 (Simplified for Dashboard)
   // ============================================================================
   const calculateBurnoutRiskScore = () => {
-    const r4w = calculateRolling4WeekAverage()
-    const redEye = calculateRedEyeRatio()
-    const weekends = calculateProtectedWeekends()
+    if (workLogs.length === 0) return null
     
-    if (!r4w || !redEye || !weekends) return null
-    
-    let riskScore = 0
-    
-    const avg = parseFloat(r4w.average)
-    if (avg > 80) riskScore += 40
-    else if (avg > 75) riskScore += 30
-    else if (avg > 60) riskScore += 15
-    else riskScore += 5
-    
-    const redEyeVal = parseFloat(redEye.ratio)
-    if (redEyeVal > 20) riskScore += 35
-    else if (redEyeVal > 15) riskScore += 25
-    else if (redEyeVal > 10) riskScore += 15
-    else riskScore += 5
-    
-    const daysNoBreak = weekends.daysSinceLastFull24h
-    if (daysNoBreak > 14) riskScore += 25
-    else if (daysNoBreak > 10) riskScore += 20
-    else if (daysNoBreak > 7) riskScore += 10
-    else riskScore += 3
-    
-    let overallStatus = 'Healthy'
-    let overallColor = '#06B6D4'
-    
-    if (riskScore >= 85) {
-      overallStatus = 'CRITICAL'
-      overallColor = '#FF3B30'
-    } else if (riskScore >= 60) {
-      overallStatus = 'HIGH RISK'
-      overallColor = '#FF3B30'
-    } else if (riskScore >= 40) {
-      overallStatus = 'ELEVATED'
-      overallColor = '#FF9500'
-    } else {
-      overallStatus = 'SUSTAINABLE'
-      overallColor = '#34C759'
-    }
-    
-    return {
-      riskScore,
-      overallStatus,
-      overallColor
+    try {
+      const today = new Date()
+      const sevenDaysAgo = new Date(today)
+      sevenDaysAgo.setDate(today.getDate() - 7)
+      const ninetyDaysAgo = new Date(today)
+      ninetyDaysAgo.setDate(today.getDate() - 90)
+      
+      const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+      
+      // Calculate L7D and L90D
+      const all7Days = []
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() - i)
+        all7Days.push(date.toISOString().split('T')[0])
+      }
+      const all90Days = []
+      for (let i = 0; i < 90; i++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() - i)
+        all90Days.push(date.toISOString().split('T')[0])
+      }
+      
+      const loggedDaysMap7 = {}
+      const loggedDaysMap90 = {}
+      completedLogs.forEach(log => {
+        const logDate = new Date(log.Date)
+        if (logDate >= sevenDaysAgo && logDate <= today) {
+          loggedDaysMap7[log.Date] = log.hours || 0
+        }
+        if (logDate >= ninetyDaysAgo && logDate <= today) {
+          loggedDaysMap90[log.Date] = log.hours || 0
+        }
+      })
+      
+      const total7 = all7Days.reduce((sum, date) => sum + (loggedDaysMap7[date] || 0), 0)
+      const total90 = all90Days.reduce((sum, date) => sum + (loggedDaysMap90[date] || 0), 0)
+      const l7dAvg = total7 / 7
+      const l90dAvg = total90 / 90
+      
+      // Find longest break
+      let longestBreak = 0
+      let currentBreak = 0
+      for (const date of all90Days.sort()) {
+        const hours = loggedDaysMap90[date] || 0
+        if (hours < 2) {
+          currentBreak++
+          longestBreak = Math.max(longestBreak, currentBreak)
+        } else {
+          currentBreak = 0
+        }
+      }
+      
+      // Extended break >7 days → full reset
+      if (longestBreak > 7) {
+        return {
+          riskScore: 0,
+          overallStatus: 'RECOVERED 🟢',
+          overallColor: '#34C759',
+          recoveryCountdown: null
+        }
+      }
+      
+      // Calculate score components (simplified)
+      const recentIntensity = l90dAvg > 0 ? (l7dAvg / l90dAvg) : 1.0
+      const intensityComponent = Math.min(40, recentIntensity * 40)
+      
+      const redEye = calculateRedEyeRatio()
+      const redEyeVal = redEye ? parseFloat(redEye.ratio.replace('%', '')) : 0
+      const circadianComponent = redEyeVal > 15 ? 20 : (redEyeVal > 10 ? 15 : 10)
+      
+      const r4w = calculateRolling4WeekAverage()
+      const avgWeekly = r4w ? parseFloat(r4w.average) : 0
+      const workloadComponent = avgWeekly > 80 ? 20 : (avgWeekly > 60 ? 15 : 10)
+      
+      // Recovery days calculation
+      let recoveryDays = null
+      for (const log of completedLogs.sort((a, b) => new Date(b.Date) - new Date(a.Date))) {
+        const hours = parseFloat(log.hours || 0)
+        if (hours < 6) {
+          const logDate = new Date(log.Date)
+          const diffTime = today - logDate
+          recoveryDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+          break
+        }
+      }
+      
+      // Holiday bonus
+      let holidayBonus = 0
+      if (longestBreak > 14) {
+        holidayBonus = -50
+      } else if (longestBreak > 7) {
+        holidayBonus = -25
+      }
+      
+      let riskScore = intensityComponent + workloadComponent + circadianComponent + holidayBonus
+      riskScore = Math.max(0, Math.min(100, riskScore))
+      
+      let overallStatus = 'SUSTAINABLE'
+      let overallColor = '#34C759'
+      let recoveryCountdown = null
+      
+      if (riskScore >= 85) {
+        overallStatus = 'CRITICAL 🔴'
+        overallColor = '#FF3B30'
+        recoveryCountdown = 2 // days until recovery recommended
+      } else if (riskScore >= 60) {
+        overallStatus = 'HIGH RISK 🟠'
+        overallColor = '#FF9500'
+        recoveryCountdown = 7
+      } else if (riskScore >= 30) {
+        overallStatus = 'ELEVATED 🟡'
+        overallColor = '#FF9500'
+        recoveryCountdown = 14
+      } else {
+        overallStatus = 'SUSTAINABLE 🟢'
+        overallColor = '#34C759'
+      }
+      
+      return {
+        riskScore: Math.round(riskScore),
+        overallStatus,
+        overallColor,
+        recoveryCountdown,
+        recoveryDays,
+        l7d: (l7dAvg * 7).toFixed(1)
+      }
+    } catch (error) {
+      console.error('Error calculating burnout risk score:', error)
+      return null
     }
   }
 
@@ -983,16 +1068,64 @@ export default function Dashboard() {
             )}
             {/* Position 3: Burnout Risk (Col 3, Row 1) */}
             {burnoutRisk && (
-              <QuickStatCard 
-                icon="🔥"
-                label="Burnout Risk" 
-                value={userProfile?.is_pro ? burnoutRisk.riskScore : 'n.a.'}
-                unit={userProfile?.is_pro ? "/100" : ""}
-                sublabel={userProfile?.is_pro ? burnoutRisk.overallStatus : 'Pro feature'}
-                color={userProfile?.is_pro ? burnoutRisk.overallColor : '#86868b'}
-                link={userProfile?.is_pro ? "/hours" : "/upgrade"}
-                isPro={!userProfile?.is_pro}
-              />
+              <div style={{
+                gridColumn: userProfile?.is_pro ? 'auto' : 'auto',
+                backgroundColor: userProfile?.is_pro ? 'white' : '#f5f5f7',
+                padding: '28px',
+                borderRadius: '16px',
+                border: userProfile?.is_pro ? `2px solid ${burnoutRisk.overallColor}` : '1px solid #e8e8ed',
+                boxShadow: userProfile?.is_pro ? '0 4px 16px rgba(0,0,0,0.06)' : '0 2px 8px rgba(0,0,0,0.03)',
+                position: 'relative',
+                textDecoration: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                minHeight: '180px',
+                opacity: userProfile?.is_pro ? 1 : 0.6
+              }}>
+                {!userProfile?.is_pro && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    padding: '4px 10px',
+                    backgroundColor: '#FF9500',
+                    color: 'white',
+                    borderRadius: '10px',
+                    fontSize: '10px',
+                    fontWeight: '700'
+                  }}>
+                    PRO
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '24px', opacity: userProfile?.is_pro ? 1 : 0.5 }}>🔥</div>
+                  <div style={{ fontSize: '12px', color: '#86868b', textTransform: 'uppercase', fontWeight: '600', letterSpacing: '0.08em' }}>
+                    Burnout Risk
+                  </div>
+                </div>
+                <div style={{ fontSize: '42px', fontWeight: '700', color: userProfile?.is_pro ? burnoutRisk.overallColor : '#86868b', marginBottom: '8px', letterSpacing: '-0.03em', lineHeight: 1, flex: '1 0 auto' }}>
+                  {userProfile?.is_pro ? burnoutRisk.riskScore : 'n.a.'}<span style={{ fontSize: '24px', fontWeight: '600', marginLeft: '4px' }}>{userProfile?.is_pro ? '/100' : ''}</span>
+                </div>
+                <div style={{ fontSize: '14px', color: '#6e6e73', fontWeight: '500', marginBottom: '4px' }}>
+                  {userProfile?.is_pro ? burnoutRisk.overallStatus : 'Pro feature'}
+                </div>
+                {userProfile?.is_pro && burnoutRisk.recoveryCountdown && (
+                  <div style={{ fontSize: '13px', color: burnoutRisk.overallColor, fontWeight: '600', marginBottom: '2px' }}>
+                    {burnoutRisk.recoveryCountdown}d recovery countdown
+                  </div>
+                )}
+                {userProfile?.is_pro && burnoutRisk.recoveryDays !== null && (
+                  <div style={{ fontSize: '12px', color: '#86868b', marginBottom: '4px' }}>
+                    Last recovery: {burnoutRisk.recoveryDays}d ago
+                  </div>
+                )}
+                {userProfile?.is_pro && burnoutRisk.riskScore >= 85 && (
+                  <div style={{ fontSize: '11px', color: '#FF3B30', fontWeight: '700', marginTop: '4px', padding: '6px 10px', backgroundColor: '#fff5f5', borderRadius: '6px' }}>
+                    CRITICAL: L7D {burnoutRisk.l7d}h. >80h/wk=2x errors (JAMA)
+                  </div>
+                )}
+              </div>
             )}
             {/* Position 4: Load Intensity Index (Col 4, Row 1) */}
             {loadIntensityIndex && (
