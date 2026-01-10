@@ -823,82 +823,88 @@ export default function Hours() {
   // COMBINED BURNOUT RISK SCORE
   // ============================================================================
   const calculateBurnoutRiskScore = () => {
-    const r4w = calculateRolling4WeekAverage()
-    const redEye = calculateRedEyeRatio()
-    const weekends = calculateProtectedWeekends()
-    
-    if (!r4w || !redEye || !weekends) return null
-    
-    let riskScore = 0
-    
-    const avg = parseFloat(r4w.average)
-    if (avg > 80) riskScore += 40
-    else if (avg > 75) riskScore += 30
-    else if (avg > 60) riskScore += 15
-    else riskScore += 5
-    
-    const redEyeVal = parseFloat(redEye.ratio)
-    if (redEyeVal > 20) riskScore += 35
-    else if (redEyeVal > 15) riskScore += 25
-    else if (redEyeVal > 10) riskScore += 15
-    else riskScore += 5
-    
-    const daysNoBreak = weekends.daysSinceLastBreak || 0
-    const longestBreak = weekends.longestRecentBreak || 0
+    try {
+      const r4w = calculateRolling4WeekAverage()
+      const redEye = calculateRedEyeRatio()
+      const weekends = calculateProtectedWeekends()
+      
+      if (!r4w || !redEye || !weekends) return null
+      
+      let riskScore = 0
+      
+      const avg = parseFloat(r4w.average || 0)
+      if (avg > 80) riskScore += 40
+      else if (avg > 75) riskScore += 30
+      else if (avg > 60) riskScore += 15
+      else riskScore += 5
+      
+      const redEyeRatioStr = redEye.ratio || '0'
+      const redEyeVal = parseFloat(redEyeRatioStr.replace('%', '')) || 0
+      if (redEyeVal > 20) riskScore += 35
+      else if (redEyeVal > 15) riskScore += 25
+      else if (redEyeVal > 10) riskScore += 15
+      else riskScore += 5
+      
+      const daysNoBreak = weekends.daysSinceLastBreak || 0
+      const longestBreak = weekends.longestRecentBreak || 0
 
-    // Give massive credit for recent extended breaks
-    if (longestBreak >= 7) {
-      riskScore += 0  // 7+ day break = near-zero recovery risk
-    } else if (longestBreak >= 4) {
-      riskScore += Math.min(15, daysNoBreak * 0.5)  // 4-6 day break = low risk
-    } else if (longestBreak >= 2) {
-      riskScore += Math.min(20, daysNoBreak * 1)  // 2-3 day break = moderate risk
-    } else if (daysNoBreak > 21) {
-      riskScore += 25  // No breaks + 21+ days = critical
-    } else if (daysNoBreak > 14) {
-      riskScore += 20
-    } else if (daysNoBreak > 7) {
-      riskScore += 10
-    } else {
-      riskScore += 5
-    }
-    
-    let overallStatus = 'Healthy'
-    let overallColor = '#34C759'
-    let urgency = ''
-    
-    if (riskScore >= 85) {
-      overallStatus = 'CRITICAL BURNOUT RISK'
-      overallColor = '#FF3B30'
-      urgency = '🔴 IMMEDIATE: Combined metrics indicate high burnout risk. Take recovery action within 48 hours.'
-    } else if (riskScore >= 65) {
-      overallStatus = 'HIGH RISK'
-      overallColor = '#FF3B30'
-      urgency = '🔴 ALERT: Multiple burnout indicators. Schedule recovery. Avoid taking on additional commitments.'
-    } else if (riskScore >= 40) {
-      overallStatus = 'ELEVATED'
-      overallColor = '#FF9500'
-      urgency = '🟡 CAUTION: Burnout metrics elevated. Monitor closely. Plan recovery within 1-2 weeks.'
-    } else if (riskScore >= 20) {
-      overallStatus = 'MODERATE'
-      overallColor = '#007AFF'
-      urgency = '🔵 WATCH: Some elevation in metrics. Continue monitoring. Maintain recovery practices.'
-    } else {
-      overallStatus = 'SUSTAINABLE'
-      overallColor = '#34C759'
-      urgency = '🟢 GOOD: Metrics within healthy range. Maintain current rhythm.'
-    }
-    
-    return {
-      riskScore,
-      overallStatus,
-      overallColor,
-      urgency,
-      breakdown: {
-        workloadScore: parseFloat(r4w.average),
-        circadianScore: parseFloat(redEye.ratio),
-        recoveryScore: daysNoBreak
+      // Give massive credit for recent extended breaks
+      if (longestBreak >= 7) {
+        riskScore += 0  // 7+ day break = near-zero recovery risk
+      } else if (longestBreak >= 4) {
+        riskScore += Math.min(15, daysNoBreak * 0.5)  // 4-6 day break = low risk
+      } else if (longestBreak >= 2) {
+        riskScore += Math.min(20, daysNoBreak * 1)  // 2-3 day break = moderate risk
+      } else if (daysNoBreak > 21) {
+        riskScore += 25  // No breaks + 21+ days = critical
+      } else if (daysNoBreak > 14) {
+        riskScore += 20
+      } else if (daysNoBreak > 7) {
+        riskScore += 10
+      } else {
+        riskScore += 5
       }
+      
+      let overallStatus = 'Healthy'
+      let overallColor = '#34C759'
+      let urgency = ''
+      
+      if (riskScore >= 85) {
+        overallStatus = 'CRITICAL BURNOUT RISK'
+        overallColor = '#FF3B30'
+        urgency = '🔴 IMMEDIATE: Combined metrics indicate high burnout risk. Take recovery action within 48 hours.'
+      } else if (riskScore >= 65) {
+        overallStatus = 'HIGH RISK'
+        overallColor = '#FF3B30'
+        urgency = '🔴 ALERT: Multiple burnout indicators. Schedule recovery. Avoid taking on additional commitments.'
+      } else if (riskScore >= 40) {
+        overallStatus = 'ELEVATED'
+        overallColor = '#FF9500'
+        urgency = '🟡 CAUTION: Burnout metrics elevated. Monitor closely. Plan recovery within 1-2 weeks.'
+      } else if (riskScore >= 20) {
+        overallStatus = 'MODERATE'
+        overallColor = '#007AFF'
+        urgency = '🔵 WATCH: Some elevation in metrics. Continue monitoring. Maintain recovery practices.'
+      } else {
+        overallStatus = 'SUSTAINABLE'
+        overallColor = '#34C759'
+        urgency = '🟢 GOOD: Metrics within healthy range. Maintain current rhythm.'
+      }
+      
+      return {
+        riskScore,
+        overallStatus,
+        overallColor,
+        urgency,
+        breakdown: {
+          workloadScore: parseFloat(r4w.average || 0),
+          circadianScore: parseFloat((redEye.ratio || '0').replace('%', '')) || 0,
+          recoveryScore: daysNoBreak
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating burnout risk score:', error)
+      return null
     }
   }
 
@@ -1526,6 +1532,13 @@ export default function Hours() {
     console.error('Error calculating metrics:', error)
     // Set defaults to prevent crashes
     metrics = { l7dTotal: '0', l7dAvgDaily: '0', allTimeAvgDaily: '0', currentStreak: 0, l1m: '0', l3m: '0', l6m: '0', ytd: '0', ltm: '0' }
+    weeklyStats = null
+    loadIntensityIndex = null
+    weeklyGoalPace = null
+    r4w = null
+    redEye = null
+    weekends = null
+    burnout = null
     chartData = []
     dayOfWeekData = []
     loadIntensityData = []
