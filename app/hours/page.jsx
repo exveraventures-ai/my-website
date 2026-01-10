@@ -3,7 +3,7 @@
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, LineChart, ReferenceLine, BarChart } from 'recharts'
+import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Footer from '../components/Footer'
 
 // ============================================================================
@@ -150,6 +150,9 @@ export default function Hours() {
   const [showAllEntries, setShowAllEntries] = useState(false)
   const [isPro, setIsPro] = useState(false)
   const [burnoutSectionCollapsed, setBurnoutSectionCollapsed] = useState(true)
+  const [clockedIn, setClockedIn] = useState(false)
+  const [clockInTime, setClockInTime] = useState(null)
+  const [partialEntry, setPartialEntry] = useState(null)
 
   useEffect(() => {
     document.title = 'Burnout IQ - Working Hours'
@@ -283,28 +286,44 @@ export default function Hours() {
   }
 
   const validateAndFormatTime = (timeString) => {
-    const [hours, minutes] = timeString.split(':')
+    if (!timeString || typeof timeString !== 'string') return '00:00'
+    const parts = timeString.split(':')
+    if (parts.length < 2) return '00:00'
+    const hours = parts[0] || '0'
+    const minutes = parts[1] || '0'
     return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
   }
 
   const calculateHours = (startTime, endTime, adjustment = 0) => {
     if (!startTime || !endTime) return 0
 
-    const [startHour, startMin] = startTime.split(':').map(Number)
-    const [endHour, endMin] = endTime.split(':').map(Number)
+    try {
+      const startParts = startTime.split(':')
+      const endParts = endTime.split(':')
+      
+      if (startParts.length < 2 || endParts.length < 2) return 0
+      
+      const startHour = parseInt(startParts[0], 10) || 0
+      const startMin = parseInt(startParts[1], 10) || 0
+      const endHour = parseInt(endParts[0], 10) || 0
+      const endMin = parseInt(endParts[1], 10) || 0
 
-    let startMinutes = startHour * 60 + startMin
-    let endMinutes = endHour * 60 + endMin
+      let startMinutes = startHour * 60 + startMin
+      let endMinutes = endHour * 60 + endMin
 
-    if (endMinutes <= startMinutes) {
-      endMinutes += 24 * 60
+      if (endMinutes <= startMinutes) {
+        endMinutes += 24 * 60
+      }
+
+      const totalMinutes = endMinutes - startMinutes
+      const hoursWorked = totalMinutes / 60
+      const totalHours = hoursWorked + parseFloat(adjustment || 0)
+
+      return totalHours
+    } catch (error) {
+      console.error('Error calculating hours:', error)
+      return 0
     }
-
-    const totalMinutes = endMinutes - startMinutes
-    const hoursWorked = totalMinutes / 60
-    const totalHours = hoursWorked + parseFloat(adjustment || 0)
-
-    return totalHours
   }
 
   const handleSubmit = async (e) => {
@@ -385,6 +404,11 @@ export default function Hours() {
   }
 
   const handleSaveEdit = async (user_id, originalDate) => {
+    if (!editData.date || !editData.startTime || !editData.endTime) {
+      setMessage('Error: Please fill in all required fields')
+      return
+    }
+    
     const cleanStartTime = validateAndFormatTime(editData.startTime)
     const cleanEndTime = validateAndFormatTime(editData.endTime)
 
@@ -1482,19 +1506,31 @@ export default function Hours() {
     }))
   }
 
-  // Call all calculation functions
-  const metrics = calculateAllMetrics()
-  const weeklyStats = calculateWeeklyStatistics()
-  const loadIntensityIndex = calculateLoadIntensityIndex()
-  const weeklyGoalPace = calculateWeeklyGoalPace()
-  const r4w = calculateRolling4WeekAverage()
-  const redEye = calculateRedEyeRatio()
-  const weekends = calculateProtectedWeekends()
-  const burnout = calculateBurnoutRiskScore()
-  const chartData = getFilteredData()
-  const dayOfWeekData = getDayOfWeekData()
-  const loadIntensityData = getLoadIntensityChartData()
-  const weeklyProgressData = getWeeklyProgressChartData()
+  // Call all calculation functions with error handling
+  let metrics, weeklyStats, loadIntensityIndex, weeklyGoalPace, r4w, redEye, weekends, burnout, chartData, dayOfWeekData, loadIntensityData, weeklyProgressData
+  
+  try {
+    metrics = calculateAllMetrics()
+    weeklyStats = calculateWeeklyStatistics()
+    loadIntensityIndex = calculateLoadIntensityIndex()
+    weeklyGoalPace = calculateWeeklyGoalPace()
+    r4w = calculateRolling4WeekAverage()
+    redEye = calculateRedEyeRatio()
+    weekends = calculateProtectedWeekends()
+    burnout = calculateBurnoutRiskScore()
+    chartData = getFilteredData()
+    dayOfWeekData = getDayOfWeekData()
+    loadIntensityData = getLoadIntensityChartData()
+    weeklyProgressData = getWeeklyProgressChartData()
+  } catch (error) {
+    console.error('Error calculating metrics:', error)
+    // Set defaults to prevent crashes
+    metrics = { l7dTotal: '0', l7dAvgDaily: '0', allTimeAvgDaily: '0', currentStreak: 0, l1m: '0', l3m: '0', l6m: '0', ytd: '0', ltm: '0' }
+    chartData = []
+    dayOfWeekData = []
+    loadIntensityData = []
+    weeklyProgressData = []
+  }
 
   if (loading) {
     return (
@@ -2476,7 +2512,7 @@ export default function Hours() {
                         <td style={tableCellStyle}>
                           <input
                             type="date"
-                            value={editData.date}
+                            value={editData.date || ''}
                             onChange={(e) => setEditData({...editData, date: e.target.value})}
                             style={tableInputStyle}
                           />
@@ -2484,7 +2520,7 @@ export default function Hours() {
                         <td style={tableCellStyle}>
                           <input
                             type="time"
-                            value={editData.startTime}
+                            value={editData.startTime || ''}
                             onChange={(e) => setEditData({...editData, startTime: e.target.value})}
                             step="60"
                             style={tableInputStyle}
@@ -2493,7 +2529,7 @@ export default function Hours() {
                         <td style={tableCellStyle}>
                           <input
                             type="time"
-                            value={editData.endTime}
+                            value={editData.endTime || ''}
                             onChange={(e) => setEditData({...editData, endTime: e.target.value})}
                             step="60"
                             style={tableInputStyle}
@@ -2503,13 +2539,13 @@ export default function Hours() {
                           <input
                             type="number"
                             step="0.5"
-                            value={editData.adjustment}
+                            value={editData.adjustment || 0}
                             onChange={(e) => setEditData({...editData, adjustment: e.target.value})}
                             style={tableInputStyle}
                           />
                         </td>
                         <td style={tableCellStyle}>
-                          {calculateHours(editData.startTime, editData.endTime, editData.adjustment).toFixed(2)} hrs
+                          {calculateHours(editData.startTime || '00:00', editData.endTime || '00:00', editData.adjustment || 0).toFixed(2)} hrs
                         </td>
                         <td style={tableCellStyle}>
                           <button onClick={() => handleSaveEdit(log.user_id, log.Date)} style={saveButtonStyle}>
@@ -2529,10 +2565,10 @@ export default function Hours() {
                             year: 'numeric' 
                           })}
                         </td>
-                        <td style={tableCellStyle}>{log['Start Time']}</td>
-                        <td style={tableCellStyle}>{log['End Time']}</td>
+                        <td style={tableCellStyle}>{log['Start Time'] || '-'}</td>
+                        <td style={tableCellStyle}>{log['End Time'] || '-'}</td>
                         <td style={tableCellStyle}>{log.adjustment || 0} hrs</td>
-                        <td style={tableCellStyle}>{parseFloat(log.hours).toFixed(2)} hrs</td>
+                        <td style={tableCellStyle}>{parseFloat(log.hours || 0).toFixed(2)} hrs</td>
                         <td style={tableCellStyle}>
                           <button onClick={() => handleEdit(log)} style={editButtonStyle}>
                             ✏️ Edit
