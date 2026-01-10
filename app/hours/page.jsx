@@ -471,6 +471,8 @@ export default function Hours() {
 
     let total = 0
     allLogs.forEach(log => {
+      // Only count completed entries (have both start and end time)
+      if (!log['Start Time'] || !log['End Time']) return
       const logDate = new Date(log.Date)
       if (logDate >= sevenDaysAgo && logDate <= currentDate) {
         total += parseFloat(log.hours || 0)
@@ -483,21 +485,42 @@ export default function Hours() {
   // 1. ROLLING 4-WEEK AVERAGE
   // ============================================================================
   const calculateRolling4WeekAverage = () => {
-    if (workLogs.length === 0) return null
+    if (workLogs.length === 0) {
+      return {
+        average: '0.0',
+        status: 'No data',
+        color: '#86868b',
+        total: '0.0',
+        recommendation: 'Start logging your hours to see your rolling 4-week average'
+      }
+    }
     
     const today = new Date()
     const fourWeeksAgo = new Date(today)
     fourWeeksAgo.setDate(today.getDate() - 28)
     
-    const last28Days = workLogs.filter(log => {
+    // Generate array of all 28 days
+    const all28Days = []
+    for (let i = 0; i < 28; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all28Days.push(date.toISOString().split('T')[0])
+    }
+    
+    // Create map of logged days (only completed entries, missing days = 0)
+    const loggedDaysMap = {}
+    workLogs.forEach(log => {
       const logDate = new Date(log.Date)
-      return logDate >= fourWeeksAgo && logDate <= today
+      // Only count completed entries (have both start and end time)
+      if (logDate >= fourWeeksAgo && logDate <= today && log['Start Time'] && log['End Time']) {
+        loggedDaysMap[log.Date] = log.hours || 0
+      }
     })
     
-    if (last28Days.length === 0) return null
-    
-    const total = last28Days.reduce((sum, log) => sum + (log.hours || 0), 0)
-    const average = total / 4
+    // Calculate total: sum all 28 days (missing days = 0, partial entries = 0)
+    const total = all28Days.reduce((sum, date) => sum + (loggedDaysMap[date] || 0), 0)
+    // Convert to weekly average: total hours over 28 days = average hours per week
+    const average = (total / 28) * 7 // Daily average * 7 days = weekly average
     
     let status = 'Healthy'
     let color = '#34C759'
@@ -623,13 +646,14 @@ export default function Hours() {
   // ============================================================================
   const calculateProtectedWeekends = () => {
     if (workLogs.length === 0) return null
-
+    
     const today = new Date()
     const oneMonthAgo = new Date(today)
     oneMonthAgo.setDate(today.getDate() - 30)
-
-    // Sort logs by date to calculate consecutive days off
-    const sortedLogs = [...workLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
+    
+    // Filter only completed entries (have both start and end time), then sort by date
+    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
 
     // Find longest recent break (consecutive days with <2h work)
     let currentBreakDays = 0
@@ -676,35 +700,46 @@ export default function Hours() {
       }
     }
 
-    // Calculate weekend protection rate (last 30 days)
-    const lastMonthLogs = workLogs.filter(log => {
-      const logDate = new Date(log.Date)
-      return logDate >= oneMonthAgo && logDate <= today
-    })
-
-    let totalWeekendDays = 0
-    let protectedWeekendDays = 0
-
-    lastMonthLogs.forEach(log => {
-      const logDate = new Date(log.Date)
-      const dayOfWeek = logDate.getDay()
-      const hours = parseFloat(log.hours || 0)
-
+    // Calculate weekend protection rate (last 30 days) - count ALL weekend days
+    // Generate array of all weekend days in last 30 days
+    const allWeekendDays = []
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      const dayOfWeek = date.getDay()
       if (dayOfWeek === 0 || dayOfWeek === 6) {
-        totalWeekendDays++
-        if (hours < 0.5) {
-          protectedWeekendDays++
-        }
+        allWeekendDays.push(date.toISOString().split('T')[0])
+      }
+    }
+    
+    // Create map of logged weekend days (only completed entries)
+    const loggedWeekendDays = {}
+    workLogs.forEach(log => {
+      const logDate = new Date(log.Date)
+      // Only count completed entries (have both start and end time)
+      if (logDate >= oneMonthAgo && logDate <= today && log['Start Time'] && log['End Time']) {
+        loggedWeekendDays[log.Date] = parseFloat(log.hours || 0)
       }
     })
-
+    
+    // Count protected weekend days (days with 0 or <0.5 hours, or missing = 0 = protected)
+    let protectedWeekendDays = 0
+    allWeekendDays.forEach(date => {
+      const hours = loggedWeekendDays[date] || 0
+        if (hours === 0 || hours < 0.5) {
+          protectedWeekendDays++
+      }
+    })
+    
+    const totalWeekendDays = allWeekendDays.length
+    
     const protectionRate = totalWeekendDays > 0 
       ? ((protectedWeekendDays / totalWeekendDays) * 100).toFixed(0)
       : 0
-
+    
     // Determine status with heavy weight on recent breaks
     let status, color, recommendation
-
+    
     // If there was a 7+ day break in last 30 days, recovery is excellent
     if (longestBreakDays >= 7) {
       status = 'Recovered'
@@ -714,10 +749,10 @@ export default function Hours() {
     // 4-6 day break = good recovery
     else if (longestBreakDays >= 4) {
       if (daysSinceLastBreak > 21) {
-        status = 'Caution'
-        color = '#FF9500'
+      status = 'Caution'
+      color = '#FF9500'
         recommendation = `🟡 Last ${longestBreakDays}-day break was ${daysSinceLastBreak}d ago. Consider scheduling recovery soon.`
-      } else {
+    } else {
         status = 'Good'
         color = '#34C759'
         recommendation = `🟢 ${longestBreakDays}-day break within last month. Good recovery baseline. ${daysSinceLastBreak}d since break.`
@@ -739,7 +774,7 @@ export default function Hours() {
     else {
       if (daysSinceLastBreak > 21 || protectionRate < 50) {
         status = 'Critical'
-        color = '#FF3B30'
+      color = '#FF3B30'
         recommendation = `🔴 ALERT: ${daysSinceLastBreak}+ days without recovery. Brain reset impossible. Schedule 4+ day break immediately.`
       } else {
         status = 'At Risk'
@@ -747,7 +782,7 @@ export default function Hours() {
         recommendation = `🟡 No extended breaks. Only ${protectionRate}% weekends protected. Schedule multi-day recovery.`
       }
     }
-
+    
     return {
       protectionRate: protectionRate + '%',
       protectedWeekendDays,
@@ -803,7 +838,7 @@ export default function Hours() {
     } else {
       riskScore += 5
     }
-
+    
     let overallStatus = 'Healthy'
     let overallColor = '#34C759'
     let urgency = ''
@@ -855,23 +890,41 @@ export default function Hours() {
     const ninetyDaysAgo = new Date(today)
     ninetyDaysAgo.setDate(today.getDate() - 90)
 
-    const last7Days = workLogs.filter(log => {
+    // Generate arrays of all days in periods
+    const all7Days = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all7Days.push(date.toISOString().split('T')[0])
+    }
+    
+    const all90Days = []
+    for (let i = 0; i < 90; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all90Days.push(date.toISOString().split('T')[0])
+    }
+    
+    // Create maps of logged days (only completed entries, missing days = 0)
+    const loggedDaysMap7 = {}
+    const loggedDaysMap90 = {}
+    workLogs.forEach(log => {
+      // Only count completed entries (have both start and end time)
+      if (!log['Start Time'] || !log['End Time']) return
       const logDate = new Date(log.Date)
-      return logDate >= sevenDaysAgo && logDate <= today
+      if (logDate >= sevenDaysAgo && logDate <= today) {
+        loggedDaysMap7[log.Date] = log.hours || 0
+      }
+      if (logDate >= ninetyDaysAgo && logDate <= today) {
+        loggedDaysMap90[log.Date] = log.hours || 0
+      }
     })
-
-    const last90Days = workLogs.filter(log => {
-      const logDate = new Date(log.Date)
-      return logDate >= ninetyDaysAgo && logDate <= today
-    })
-
-    const h7 = last7Days.length > 0 
-      ? last7Days.reduce((sum, log) => sum + (log.hours || 0), 0) / last7Days.length
-      : 0
-
-    const h90 = last90Days.length > 0
-      ? last90Days.reduce((sum, log) => sum + (log.hours || 0), 0) / last90Days.length
-      : 0
+    
+    // Calculate averages: sum all days (missing = 0, partial = 0) / total days
+    const total7 = all7Days.reduce((sum, date) => sum + (loggedDaysMap7[date] || 0), 0)
+    const total90 = all90Days.reduce((sum, date) => sum + (loggedDaysMap90[date] || 0), 0)
+    const h7 = total7 / 7 // Always divide by 7
+    const h90 = total90 / 90 // Always divide by 90
 
     const intensityIndex = h90 > 0 ? ((h7 / h90) * 100).toFixed(1) : 0
 
@@ -910,7 +963,9 @@ export default function Hours() {
     startOfWeek.setDate(startOfWeek.getDate() - diff)
     startOfWeek.setHours(0, 0, 0, 0)
 
+    // Filter only completed entries (have both start and end time)
     const currentWeekLogs = workLogs.filter(log => {
+      if (!log['Start Time'] || !log['End Time']) return false
       const logDate = new Date(log.Date)
       return logDate >= startOfWeek && logDate <= today
     })
@@ -1045,28 +1100,68 @@ export default function Hours() {
     const sevenDaysAgo = new Date(today)
     sevenDaysAgo.setDate(today.getDate() - 7)
 
-    const last7Days = workLogs.filter(log => {
+    // Filter only completed entries (have both start and end time)
+    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    
+    // Generate array of all 7 days and create map of logged days
+    const all7Days = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all7Days.push(date.toISOString().split('T')[0])
+    }
+    
+    const loggedDaysMap = {}
+    completedLogs.forEach(log => {
       const logDate = new Date(log.Date)
-      return logDate >= sevenDaysAgo && logDate <= today
+      if (logDate >= sevenDaysAgo && logDate <= today) {
+        loggedDaysMap[log.Date] = log.hours || 0
+      }
     })
-    const l7dTotal = last7Days.reduce((sum, log) => sum + (log.hours || 0), 0)
-    const l7dAvgDaily = last7Days.length > 0 ? (l7dTotal / last7Days.length).toFixed(1) : '0'
+    
+    // Calculate total: sum all 7 days (missing days = 0, partial entries = 0)
+    const l7dTotal = all7Days.reduce((sum, date) => sum + (loggedDaysMap[date] || 0), 0)
+    const l7dAvgDaily = (l7dTotal / 7).toFixed(1) // Always divide by 7 days
     const l7dAvgWeekly = l7dTotal.toFixed(1)
 
-    const allTimeAvgDaily = workLogs.length > 0
-      ? (workLogs.reduce((sum, log) => sum + (log.hours || 0), 0) / workLogs.length).toFixed(1)
-      : '0'
+    // For all-time average, calculate from first log date to today (missing days = 0)
+    let allTimeAvgDaily = '0'
+    if (completedLogs.length > 0) {
+      const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
+      const firstDate = new Date(sortedLogs[0].Date)
+      const daysSinceFirst = Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)) + 1
+      const total = completedLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
+      allTimeAvgDaily = (total / daysSinceFirst).toFixed(1)
+    }
 
     const calculatePeriod = (days) => {
       const periodStart = new Date(today)
       periodStart.setDate(today.getDate() - days)
-      const periodLogs = workLogs.filter(log => new Date(log.Date) >= periodStart)
-      if (periodLogs.length === 0) return '0'
-      const total = periodLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
-      return (total / periodLogs.length * 7).toFixed(1)
+      
+      // Generate array of all days in period
+      const allPeriodDays = []
+      for (let i = 0; i < days; i++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() - i)
+        allPeriodDays.push(date.toISOString().split('T')[0])
+      }
+      
+      // Create map of logged days (only completed entries)
+      const loggedDaysMap = {}
+      completedLogs.forEach(log => {
+        const logDate = new Date(log.Date)
+        // Only count completed entries (have both start and end time)
+        if (logDate >= periodStart && log['Start Time'] && log['End Time']) {
+          loggedDaysMap[log.Date] = log.hours || 0
+        }
+      })
+      
+      // Calculate total: sum all days (missing days = 0)
+      const total = allPeriodDays.reduce((sum, date) => sum + (loggedDaysMap[date] || 0), 0)
+      return (total / days * 7).toFixed(1) // Average per day * 7 for weekly projection
     }
 
-    const sortedLogs = [...workLogs].sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())
+    const sortedLogs = [...completedLogs].sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())
     let currentStreak = 0
     let expectedDate = new Date()
 
@@ -1093,10 +1188,28 @@ export default function Hours() {
       l6m: calculatePeriod(180),
       ytd: (() => {
         const yearStart = new Date(today.getFullYear(), 0, 1)
-        const ytdLogs = workLogs.filter(log => new Date(log.Date) >= yearStart)
-        if (ytdLogs.length === 0) return '0'
-        const total = ytdLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
-        return (total / ytdLogs.length * 7).toFixed(1)
+        const daysSinceYearStart = Math.floor((today - yearStart) / (1000 * 60 * 60 * 24)) + 1
+        
+        // Create map of logged days (only completed entries)
+        const loggedDaysMap = {}
+        completedLogs.forEach(log => {
+          const logDate = new Date(log.Date)
+          // Only count completed entries (have both start and end time)
+          if (logDate >= yearStart && log['Start Time'] && log['End Time']) {
+            loggedDaysMap[log.Date] = log.hours || 0
+          }
+        })
+        
+        // Calculate total from all days (missing = 0)
+        let total = 0
+        for (let i = 0; i < daysSinceYearStart; i++) {
+          const date = new Date(yearStart)
+          date.setDate(date.getDate() + i)
+          const dateStr = date.toISOString().split('T')[0]
+          total += loggedDaysMap[dateStr] || 0
+        }
+        
+        return (total / daysSinceYearStart * 7).toFixed(1)
       })(),
       ltm: calculatePeriod(365)
     }
@@ -1116,7 +1229,10 @@ export default function Hours() {
     const dayOfWeekAverages = {}
     const dayOfWeekCounts = {}
 
-    allLogs.forEach(log => {
+    // Filter only completed entries for historical averages
+    const completedAllLogs = allLogs.filter(log => log['Start Time'] && log['End Time'])
+    
+    completedAllLogs.forEach(log => {
       const date = new Date(log.Date)
       const dayOfWeek = date.getDay()
 
@@ -1139,7 +1255,10 @@ export default function Hours() {
     let historicalExpectedSoFar = 0
     let latestDayOfWeek = 0
 
-    currentWeekLogs.forEach(log => {
+    // Filter only completed entries for current week
+    const completedCurrentWeekLogs = currentWeekLogs.filter(log => log['Start Time'] && log['End Time'])
+    
+    completedCurrentWeekLogs.forEach(log => {
       const date = new Date(log.Date)
       const dayOfWeek = date.getDay()
 
@@ -1340,7 +1459,9 @@ export default function Hours() {
     const dayTotals = {}
     const dayCounts = {}
 
+    // Filter only completed entries (have both start and end time)
     workLogs.forEach(log => {
+      if (!log['Start Time'] || !log['End Time']) return
       const date = new Date(log.Date)
       const dayOfWeek = date.getDay()
       const dayName = dayNames[dayOfWeek]
@@ -1733,28 +1854,28 @@ export default function Hours() {
           {/* Header with Collapse Button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: burnoutSectionCollapsed ? '0' : '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-              <h2 style={{
-                fontSize: '28px',
-                fontWeight: '600',
-                margin: '0',
-                color: '#1d1d1f'
-              }}>
-                Burnout Risk Assessment
-              </h2>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: '600',
+              margin: '0',
+              color: '#1d1d1f'
+            }}>
+              Burnout Risk Assessment
+            </h2>
               {isPro && !burnoutSectionCollapsed && (
-                <a href="/science" style={{
-                  padding: '8px 14px',
+            <a href="/science" style={{
+              padding: '8px 14px',
                   backgroundColor: '#4F46E5',
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  textDecoration: 'none',
-                  transition: 'background-color 0.2s',
-                  whiteSpace: 'nowrap'
+              color: 'white',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: '600',
+              textDecoration: 'none',
+              transition: 'background-color 0.2s',
+              whiteSpace: 'nowrap'
                 }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4338CA'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4F46E5'}>
-                  📚 See the Science
-                </a>
+              📚 See the Science
+            </a>
               )}
             </div>
             <button
@@ -1784,7 +1905,7 @@ export default function Hours() {
               {burnoutSectionCollapsed ? '▼' : '▲'}
             </button>
           </div>
-
+          
           {!burnoutSectionCollapsed && (
             <>
               {!isPro ? (
@@ -1968,26 +2089,26 @@ export default function Hours() {
             
             {/* Sleep Debt Accumulation - Hidden for now */}
             {false && (
-              <div style={{
-                backgroundColor: 'white',
-                padding: '24px',
-                borderRadius: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                border: '3px solid #86868b'
-              }}>
-                <div style={{ fontSize: '13px', color: '#86868b', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Sleep Debt Accumulation
-                </div>
-                <div style={{ fontSize: '40px', fontWeight: '700', color: '#86868b', marginBottom: '4px' }}>
-                  N/A
-                </div>
-                <div style={{ fontSize: '13px', color: '#6e6e73', marginBottom: '12px' }}>
-                  Setup Required • Not yet configured
-                </div>
-                <div style={{ fontSize: '13px', color: '#1d1d1f', lineHeight: '1.6', padding: '12px', backgroundColor: '#f5f5f7', borderRadius: '8px' }}>
-                  ⚠️ Add sleep tracking to monitor recovery debt. Formula: (sleep needed - actual) - (recovery accumulated).
-                </div>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '24px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              border: '3px solid #86868b'
+            }}>
+              <div style={{ fontSize: '13px', color: '#86868b', fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Sleep Debt Accumulation
               </div>
+              <div style={{ fontSize: '40px', fontWeight: '700', color: '#86868b', marginBottom: '4px' }}>
+                N/A
+              </div>
+              <div style={{ fontSize: '13px', color: '#6e6e73', marginBottom: '12px' }}>
+                Setup Required • Not yet configured
+              </div>
+              <div style={{ fontSize: '13px', color: '#1d1d1f', lineHeight: '1.6', padding: '12px', backgroundColor: '#f5f5f7', borderRadius: '8px' }}>
+                ⚠️ Add sleep tracking to monitor recovery debt. Formula: (sleep needed - actual) - (recovery accumulated).
+              </div>
+            </div>
             )}
           </div>
                 </>
@@ -2036,17 +2157,17 @@ export default function Hours() {
                 value={metrics.allTimeAvgDaily !== 'n.m.' ? metrics.allTimeAvgDaily + ' hrs' : '0 hrs'}
                 sublabel="All-time daily"
               />
-              {weeklyGoalPace && (
-                <MetricCard 
-                  label="Weekly Progress" 
-                  value={weeklyGoalPace.workedSoFar + '/' + weeklyGoalPace.weeklyTarget + ' hrs'}
-                  sublabel={`${weeklyGoalPace.paceStatus} (${weeklyGoalPace.delta > 0 ? '+' : ''}${weeklyGoalPace.delta} hrs)`}
-                  color={weeklyGoalPace.paceColor}
-                  highlight
-                />
-              )}
-            </div>
+            {weeklyGoalPace && (
+              <MetricCard 
+                label="Weekly Progress" 
+                value={weeklyGoalPace.workedSoFar + '/' + weeklyGoalPace.weeklyTarget + ' hrs'}
+                sublabel={`${weeklyGoalPace.paceStatus} (${weeklyGoalPace.delta > 0 ? '+' : ''}${weeklyGoalPace.delta} hrs)`}
+                color={weeklyGoalPace.paceColor}
+                highlight
+              />
+            )}
           </div>
+        </div>
         )}
 
         {/* Time Period Selector */}
@@ -2153,14 +2274,14 @@ export default function Hours() {
         {/* Rolling Averages (Weekly) */}
         {metrics && (
           <div style={{ marginBottom: '50px' }}>
-            <h2 style={{
-              fontSize: '28px',
-              fontWeight: '600',
+          <h2 style={{ 
+            fontSize: '28px',
+            fontWeight: '600',
               margin: '0 0 24px 0',
-              color: '#1d1d1f'
-            }}>
+            color: '#1d1d1f'
+          }}>
               Rolling Averages (Weekly)
-            </h2>
+          </h2>
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
@@ -2238,8 +2359,8 @@ export default function Hours() {
                   />
                 </div>
               </>
-            )}
-          </div>
+          )}
+        </div>
         )}
 
         {/* Recent Entries Table */}
@@ -2251,14 +2372,14 @@ export default function Hours() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-            <h2 style={{ 
-              fontSize: '28px',
-              fontWeight: '600',
+          <h2 style={{ 
+            fontSize: '28px',
+            fontWeight: '600',
               margin: 0,
-              color: '#1d1d1f'
-            }}>
-              Recent Entries
-            </h2>
+            color: '#1d1d1f'
+          }}>
+            Recent Entries
+          </h2>
             {!showAllEntries && workLogs.length > 0 && (() => {
               const today = new Date()
               const sevenDaysAgo = new Date(today)
@@ -2349,80 +2470,80 @@ export default function Hours() {
                   }
                   
                   return logsToShow.map((log) => (
-                    <tr key={`${log.user_id}-${log.Date}`} style={{ borderBottom: '1px solid #f5f5f7' }}>
-                      {editingLog && editingLog.user_id === log.user_id && editingLog.date === log.Date ? (
-                        <>
-                          <td style={tableCellStyle}>
-                            <input
-                              type="date"
-                              value={editData.date}
-                              onChange={(e) => setEditData({...editData, date: e.target.value})}
-                              style={tableInputStyle}
-                            />
-                          </td>
-                          <td style={tableCellStyle}>
-                            <input
-                              type="time"
-                              value={editData.startTime}
-                              onChange={(e) => setEditData({...editData, startTime: e.target.value})}
-                              step="60"
-                              style={tableInputStyle}
-                            />
-                          </td>
-                          <td style={tableCellStyle}>
-                            <input
-                              type="time"
-                              value={editData.endTime}
-                              onChange={(e) => setEditData({...editData, endTime: e.target.value})}
-                              step="60"
-                              style={tableInputStyle}
-                            />
-                          </td>
-                          <td style={tableCellStyle}>
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={editData.adjustment}
-                              onChange={(e) => setEditData({...editData, adjustment: e.target.value})}
-                              style={tableInputStyle}
-                            />
-                          </td>
-                          <td style={tableCellStyle}>
-                            {calculateHours(editData.startTime, editData.endTime, editData.adjustment).toFixed(2)} hrs
-                          </td>
-                          <td style={tableCellStyle}>
-                            <button onClick={() => handleSaveEdit(log.user_id, log.Date)} style={saveButtonStyle}>
-                              ✓ Save
-                            </button>
-                            <button onClick={handleCancelEdit} style={cancelButtonStyle}>
-                              ✕ Cancel
-                            </button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td style={tableCellStyle}>
-                            {new Date(log.Date).toLocaleDateString('en-GB', { 
-                              day: '2-digit', 
-                              month: 'short', 
-                              year: 'numeric' 
-                            })}
-                          </td>
-                          <td style={tableCellStyle}>{log['Start Time']}</td>
-                          <td style={tableCellStyle}>{log['End Time']}</td>
-                          <td style={tableCellStyle}>{log.adjustment || 0} hrs</td>
-                          <td style={tableCellStyle}>{parseFloat(log.hours).toFixed(2)} hrs</td>
-                          <td style={tableCellStyle}>
-                            <button onClick={() => handleEdit(log)} style={editButtonStyle}>
-                              ✏️ Edit
-                            </button>
-                            <button onClick={() => handleDelete(log.user_id, log.Date)} style={deleteButtonStyle}>
-                              🗑️ Delete
-                            </button>
-                          </td>
-                        </>
-                      )}
-                    </tr>
+                  <tr key={`${log.user_id}-${log.Date}`} style={{ borderBottom: '1px solid #f5f5f7' }}>
+                    {editingLog && editingLog.user_id === log.user_id && editingLog.date === log.Date ? (
+                      <>
+                        <td style={tableCellStyle}>
+                          <input
+                            type="date"
+                            value={editData.date}
+                            onChange={(e) => setEditData({...editData, date: e.target.value})}
+                            style={tableInputStyle}
+                          />
+                        </td>
+                        <td style={tableCellStyle}>
+                          <input
+                            type="time"
+                            value={editData.startTime}
+                            onChange={(e) => setEditData({...editData, startTime: e.target.value})}
+                            step="60"
+                            style={tableInputStyle}
+                          />
+                        </td>
+                        <td style={tableCellStyle}>
+                          <input
+                            type="time"
+                            value={editData.endTime}
+                            onChange={(e) => setEditData({...editData, endTime: e.target.value})}
+                            step="60"
+                            style={tableInputStyle}
+                          />
+                        </td>
+                        <td style={tableCellStyle}>
+                          <input
+                            type="number"
+                            step="0.5"
+                            value={editData.adjustment}
+                            onChange={(e) => setEditData({...editData, adjustment: e.target.value})}
+                            style={tableInputStyle}
+                          />
+                        </td>
+                        <td style={tableCellStyle}>
+                          {calculateHours(editData.startTime, editData.endTime, editData.adjustment).toFixed(2)} hrs
+                        </td>
+                        <td style={tableCellStyle}>
+                          <button onClick={() => handleSaveEdit(log.user_id, log.Date)} style={saveButtonStyle}>
+                            ✓ Save
+                          </button>
+                          <button onClick={handleCancelEdit} style={cancelButtonStyle}>
+                            ✕ Cancel
+                          </button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td style={tableCellStyle}>
+                          {new Date(log.Date).toLocaleDateString('en-GB', { 
+                            day: '2-digit', 
+                            month: 'short', 
+                            year: 'numeric' 
+                          })}
+                        </td>
+                        <td style={tableCellStyle}>{log['Start Time']}</td>
+                        <td style={tableCellStyle}>{log['End Time']}</td>
+                        <td style={tableCellStyle}>{log.adjustment || 0} hrs</td>
+                        <td style={tableCellStyle}>{parseFloat(log.hours).toFixed(2)} hrs</td>
+                        <td style={tableCellStyle}>
+                          <button onClick={() => handleEdit(log)} style={editButtonStyle}>
+                            ✏️ Edit
+                          </button>
+                          <button onClick={() => handleDelete(log.user_id, log.Date)} style={deleteButtonStyle}>
+                            🗑️ Delete
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </tr>
                   ))
                 })()}
               </tbody>
