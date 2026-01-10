@@ -1,6 +1,6 @@
 "use client"
 
-import { supabase } from './lib/supabase.js'
+import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Bar, BarChart, ComposedChart } from 'recharts'
 
