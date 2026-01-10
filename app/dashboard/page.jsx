@@ -131,6 +131,8 @@ export default function Dashboard() {
 
     let total = 0
     allLogs.forEach(log => {
+      // Only count completed entries (have both start and end time)
+      if (!log['Start Time'] || !log['End Time']) return
       const logDate = new Date(log.Date)
       if (logDate >= sevenDaysAgo && logDate <= currentDate) {
         total += parseFloat(log.hours || 0)
@@ -148,19 +150,39 @@ export default function Dashboard() {
     const thirtyDaysAgo = new Date(today)
     thirtyDaysAgo.setDate(today.getDate() - 30)
 
-    // L7D calculations
-    const last7Days = workLogs.filter(log => {
+    // Filter only completed entries (have both start and end time)
+    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    
+    // L7D calculations - count all 7 days (missing days = 0)
+    const all7Days = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all7Days.push(date.toISOString().split('T')[0])
+    }
+    
+    const loggedDaysMap = {}
+    completedLogs.forEach(log => {
       const logDate = new Date(log.Date)
-      return logDate >= sevenDaysAgo && logDate <= today
+      if (logDate >= sevenDaysAgo && logDate <= today) {
+        loggedDaysMap[log.Date] = log.hours || 0
+      }
     })
-    const l7dTotal = last7Days.reduce((sum, log) => sum + (log.hours || 0), 0)
-    const l7dAvgDaily = last7Days.length > 0 ? (l7dTotal / last7Days.length).toFixed(1) : 'n.m.'
+    
+    const l7dTotal = all7Days.reduce((sum, date) => sum + (loggedDaysMap[date] || 0), 0)
+    const l7dAvgDaily = (l7dTotal / 7).toFixed(1) // Always divide by 7 days
 
-    // Historical average
-    const allTimeAvgDaily = workLogs.length > 0
-      ? (workLogs.reduce((sum, log) => sum + (log.hours || 0), 0) / workLogs.length).toFixed(1)
-      : 'n.m.'
-    const allTimeAvgWeekly = allTimeAvgDaily !== 'n.m.' ? (parseFloat(allTimeAvgDaily) * 7).toFixed(1) : 'n.m.'
+    // Historical average - calculate from first log date to today (missing days = 0)
+    let allTimeAvgDaily = 'n.m.'
+    let allTimeAvgWeekly = 'n.m.'
+    if (completedLogs.length > 0) {
+      const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
+      const firstDate = new Date(sortedLogs[0].Date)
+      const daysSinceFirst = Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)) + 1
+      const total = completedLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
+      allTimeAvgDaily = (total / daysSinceFirst).toFixed(1)
+      allTimeAvgWeekly = (parseFloat(allTimeAvgDaily) * 7).toFixed(1)
+    }
 
     // Intensity ratio
     const intensityRatio = (l7dAvgDaily !== 'n.m.' && allTimeAvgDaily !== 'n.m.')
@@ -183,8 +205,8 @@ export default function Dashboard() {
       }
     }
 
-    // Streak calculation
-    const sortedLogs = [...workLogs].sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())
+    // Streak calculation - only count completed entries
+    const sortedLogs = [...completedLogs].sort((a, b) => new Date(b.Date).getTime() - new Date(a.Date).getTime())
     let currentStreak = 0
     let expectedDate = new Date()
     
@@ -235,15 +257,28 @@ export default function Dashboard() {
     const fourWeeksAgo = new Date(today)
     fourWeeksAgo.setDate(today.getDate() - 28)
     
-    const last28Days = workLogs.filter(log => {
+    // Generate array of all 28 days
+    const all28Days = []
+    for (let i = 0; i < 28; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all28Days.push(date.toISOString().split('T')[0])
+    }
+    
+    // Create map of logged days (only completed entries, missing days = 0)
+    const loggedDaysMap = {}
+    workLogs.forEach(log => {
       const logDate = new Date(log.Date)
-      return logDate >= fourWeeksAgo && logDate <= today
+      // Only count completed entries (have both start and end time)
+      if (logDate >= fourWeeksAgo && logDate <= today && log['Start Time'] && log['End Time']) {
+        loggedDaysMap[log.Date] = log.hours || 0
+      }
     })
     
-    if (last28Days.length === 0) return null
-    
-    const total = last28Days.reduce((sum, log) => sum + (log.hours || 0), 0)
-    const average = total / 4
+    // Calculate total: sum all 28 days (missing days = 0)
+    const total = all28Days.reduce((sum, date) => sum + (loggedDaysMap[date] || 0), 0)
+    // Convert to weekly average: total hours over 28 days = average hours per week
+    const average = (total / 28) * 7 // Daily average * 7 days = weekly average
     
     let status = 'Healthy'
     let color = '#06B6D4'
@@ -263,7 +298,7 @@ export default function Dashboard() {
     }
     
     return {
-      average: average.toFixed(1),
+      average: average.toFixed(1), // Weekly average (already calculated as (total/28)*7)
       status,
       color,
       total: total.toFixed(1)
@@ -277,9 +312,13 @@ export default function Dashboard() {
     if (workLogs.length === 0) return null
 
     // Group logs by week ending Sunday (Sunday is day 0, so week runs Mon-Sun, ending on Sunday)
+    // Only count completed entries (have both start and end time)
     const weeklyTotals = {}
 
     workLogs.forEach(log => {
+      // Skip partial entries
+      if (!log['Start Time'] || !log['End Time']) return
+      
       const logDate = new Date(log.Date)
       logDate.setHours(0, 0, 0, 0)
       const dayOfWeek = logDate.getDay() // 0 = Sunday, 1 = Monday, etc.
@@ -410,28 +449,37 @@ export default function Dashboard() {
     const oneMonthAgo = new Date(today)
     oneMonthAgo.setDate(today.getDate() - 30)
     
-    // Filter logs from last 30 days
-    const lastMonthLogs = workLogs.filter(log => {
-      const logDate = new Date(log.Date)
-      return logDate >= oneMonthAgo && logDate <= today
-    })
-    
-    // Count weekend days and protected weekend days
-    let totalWeekendDays = 0
-    let protectedWeekendDays = 0
-    
-    lastMonthLogs.forEach(log => {
-      const logDate = new Date(log.Date)
-      const dayOfWeek = logDate.getDay()
-      const hours = parseFloat(log.hours || 0)
-      
+    // Generate array of all weekend days in last 30 days
+    const allWeekendDays = []
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      const dayOfWeek = date.getDay()
       if (dayOfWeek === 0 || dayOfWeek === 6) {
-        totalWeekendDays++
-        if (hours === 0 || hours < 0.5) {
-          protectedWeekendDays++
-        }
+        allWeekendDays.push(date.toISOString().split('T')[0])
+      }
+    }
+    
+    // Create map of logged weekend days (only completed entries)
+    const loggedWeekendDays = {}
+    workLogs.forEach(log => {
+      const logDate = new Date(log.Date)
+      // Only count completed entries (have both start and end time)
+      if (logDate >= oneMonthAgo && logDate <= today && log['Start Time'] && log['End Time']) {
+        loggedWeekendDays[log.Date] = parseFloat(log.hours || 0)
       }
     })
+    
+    // Count protected weekend days (days with 0 or <0.5 hours, or missing = 0 = protected)
+    let protectedWeekendDays = 0
+    allWeekendDays.forEach(date => {
+      const hours = loggedWeekendDays[date] || 0
+      if (hours === 0 || hours < 0.5) {
+        protectedWeekendDays++
+      }
+    })
+    
+    const totalWeekendDays = allWeekendDays.length
     
     const protectionRate = totalWeekendDays > 0 
       ? ((protectedWeekendDays / totalWeekendDays) * 100).toFixed(0)
@@ -525,23 +573,41 @@ export default function Dashboard() {
     const ninetyDaysAgo = new Date(today)
     ninetyDaysAgo.setDate(today.getDate() - 90)
 
-    const last7Days = workLogs.filter(log => {
+    // Generate arrays of all days in periods
+    const all7Days = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all7Days.push(date.toISOString().split('T')[0])
+    }
+    
+    const all90Days = []
+    for (let i = 0; i < 90; i++) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      all90Days.push(date.toISOString().split('T')[0])
+    }
+    
+    // Create maps of logged days (only completed entries, missing days = 0)
+    const loggedDaysMap7 = {}
+    const loggedDaysMap90 = {}
+    workLogs.forEach(log => {
+      // Only count completed entries (have both start and end time)
+      if (!log['Start Time'] || !log['End Time']) return
       const logDate = new Date(log.Date)
-      return logDate >= sevenDaysAgo && logDate <= today
+      if (logDate >= sevenDaysAgo && logDate <= today) {
+        loggedDaysMap7[log.Date] = log.hours || 0
+      }
+      if (logDate >= ninetyDaysAgo && logDate <= today) {
+        loggedDaysMap90[log.Date] = log.hours || 0
+      }
     })
-
-    const last90Days = workLogs.filter(log => {
-      const logDate = new Date(log.Date)
-      return logDate >= ninetyDaysAgo && logDate <= today
-    })
-
-    const h7 = last7Days.length > 0 
-      ? last7Days.reduce((sum, log) => sum + (log.hours || 0), 0) / last7Days.length
-      : 0
-
-    const h90 = last90Days.length > 0
-      ? last90Days.reduce((sum, log) => sum + (log.hours || 0), 0) / last90Days.length
-      : 0
+    
+    // Calculate averages: sum all days (missing = 0) / total days
+    const total7 = all7Days.reduce((sum, date) => sum + (loggedDaysMap7[date] || 0), 0)
+    const total90 = all90Days.reduce((sum, date) => sum + (loggedDaysMap90[date] || 0), 0)
+    const h7 = total7 / 7 // Always divide by 7
+    const h90 = total90 / 90 // Always divide by 90
 
     const intensityIndex = h90 > 0 ? ((h7 / h90) * 100).toFixed(1) : 0
 
@@ -574,7 +640,11 @@ export default function Dashboard() {
     const thirtyDaysAgo = new Date(today)
     thirtyDaysAgo.setDate(today.getDate() - 30)
 
-    const filteredLogs = workLogs.filter(log => new Date(log.Date) >= thirtyDaysAgo)
+    // Filter to only completed entries (have both start and end time)
+    const filteredLogs = workLogs.filter(log => {
+      if (!log['Start Time'] || !log['End Time']) return false
+      return new Date(log.Date) >= thirtyDaysAgo
+    })
 
     // Sort all workLogs by date for L7D calculation
     const allLogsSorted = [...workLogs].sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())

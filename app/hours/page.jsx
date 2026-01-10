@@ -264,6 +264,19 @@ export default function Hours() {
 
     if (!error && logs) {
       setWorkLogs(logs)
+      
+      // Check for existing partial entry (clocked in but not clocked out) for today
+      const today = new Date().toISOString().split('T')[0]
+      const todayLog = logs.find(log => log.Date === today && log['Start Time'] && !log['End Time'])
+      if (todayLog) {
+        setClockedIn(true)
+        setClockInTime(todayLog['Start Time'])
+        setPartialEntry(todayLog)
+      } else {
+        setClockedIn(false)
+        setClockInTime(null)
+        setPartialEntry(null)
+      }
     }
 
     setLoading(false)
@@ -610,62 +623,140 @@ export default function Hours() {
   // ============================================================================
   const calculateProtectedWeekends = () => {
     if (workLogs.length === 0) return null
-    
+
     const today = new Date()
     const oneMonthAgo = new Date(today)
     oneMonthAgo.setDate(today.getDate() - 30)
-    
-    // Filter logs from last 30 days
+
+    // Sort logs by date to calculate consecutive days off
+    const sortedLogs = [...workLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
+
+    // Find longest recent break (consecutive days with <2h work)
+    let currentBreakDays = 0
+    let longestBreakDays = 0
+    let daysSinceLastBreak = 0
+    let foundRecentWork = false
+
+    // Check last 60 days for breaks
+    const sixtyDaysAgo = new Date(today)
+    sixtyDaysAgo.setDate(today.getDate() - 60)
+
+    const recentLogs = sortedLogs.filter(log => new Date(log.Date) >= sixtyDaysAgo)
+
+    // Build a map of all dates in range
+    const dateMap = new Map()
+    for (let d = new Date(sixtyDaysAgo); d <= today; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0]
+      const log = recentLogs.find(l => l.Date === dateStr)
+      const hours = log ? (log.hours || 0) : 0
+      dateMap.set(dateStr, hours)
+    }
+
+    // Iterate through dates from most recent to find breaks
+    const dates = Array.from(dateMap.keys()).sort().reverse()
+
+    for (const dateStr of dates) {
+      const hours = dateMap.get(dateStr)
+      const isRecoveryDay = hours < 2
+
+      if (isRecoveryDay) {
+        currentBreakDays++
+        longestBreakDays = Math.max(longestBreakDays, currentBreakDays)
+      } else {
+        if (!foundRecentWork) {
+          daysSinceLastBreak = 0
+          foundRecentWork = true
+        }
+        if (currentBreakDays > 0) {
+          currentBreakDays = 0
+        }
+        if (foundRecentWork) {
+          daysSinceLastBreak++
+        }
+      }
+    }
+
+    // Calculate weekend protection rate (last 30 days)
     const lastMonthLogs = workLogs.filter(log => {
       const logDate = new Date(log.Date)
       return logDate >= oneMonthAgo && logDate <= today
     })
-    
-    // Count weekend days and protected weekend days
+
     let totalWeekendDays = 0
     let protectedWeekendDays = 0
-    
+
     lastMonthLogs.forEach(log => {
       const logDate = new Date(log.Date)
       const dayOfWeek = logDate.getDay()
       const hours = parseFloat(log.hours || 0)
-      
+
       if (dayOfWeek === 0 || dayOfWeek === 6) {
         totalWeekendDays++
-        if (hours === 0 || hours < 0.5) {
+        if (hours < 0.5) {
           protectedWeekendDays++
         }
       }
     })
-    
+
     const protectionRate = totalWeekendDays > 0 
       ? ((protectedWeekendDays / totalWeekendDays) * 100).toFixed(0)
       : 0
-    
-    // Determine status based on protection rate
+
+    // Determine status with heavy weight on recent breaks
     let status, color, recommendation
-    
-    if (protectionRate >= 75) {
-      status = 'Protected'
+
+    // If there was a 7+ day break in last 30 days, recovery is excellent
+    if (longestBreakDays >= 7) {
+      status = 'Recovered'
       color = '#34C759'
-      recommendation = '🟢 Good weekend recovery. ' + protectionRate + '% of weekends protected in last month.'
-    } else if (protectionRate >= 50) {
-      status = 'Caution'
-      color = '#FF9500'
-      recommendation = '🟡 Only ' + protectionRate + '% weekends protected. Increase to 75%+ for sustainable rhythm.'
-    } else {
-      status = 'At Risk'
-      color = '#FF3B30'
-      recommendation = '🔴 ALERT: Only ' + protectionRate + '% weekends protected. Brain cannot reset. Schedule full weekends off.'
+      recommendation = `🟢 Excellent: ${longestBreakDays}-day break detected. Recovery systems fully recharged. ${daysSinceLastBreak}d since break ended.`
     }
-    
+    // 4-6 day break = good recovery
+    else if (longestBreakDays >= 4) {
+      if (daysSinceLastBreak > 21) {
+        status = 'Caution'
+        color = '#FF9500'
+        recommendation = `🟡 Last ${longestBreakDays}-day break was ${daysSinceLastBreak}d ago. Consider scheduling recovery soon.`
+      } else {
+        status = 'Good'
+        color = '#34C759'
+        recommendation = `🟢 ${longestBreakDays}-day break within last month. Good recovery baseline. ${daysSinceLastBreak}d since break.`
+      }
+    }
+    // 2-3 day break = moderate
+    else if (longestBreakDays >= 2) {
+      if (daysSinceLastBreak > 14) {
+        status = 'Elevated'
+        color = '#FF9500'
+        recommendation = `🟡 Only ${longestBreakDays}-day breaks. Last one ${daysSinceLastBreak}d ago. Schedule 4+ day break.`
+      } else {
+        status = 'Moderate'
+        color = '#007AFF'
+        recommendation = `🔵 ${longestBreakDays}-day break ${daysSinceLastBreak}d ago. Weekend protection: ${protectionRate}%.`
+      }
+    }
+    // No meaningful breaks
+    else {
+      if (daysSinceLastBreak > 21 || protectionRate < 50) {
+        status = 'Critical'
+        color = '#FF3B30'
+        recommendation = `🔴 ALERT: ${daysSinceLastBreak}+ days without recovery. Brain reset impossible. Schedule 4+ day break immediately.`
+      } else {
+        status = 'At Risk'
+        color = '#FF9500'
+        recommendation = `🟡 No extended breaks. Only ${protectionRate}% weekends protected. Schedule multi-day recovery.`
+      }
+    }
+
     return {
       protectionRate: protectionRate + '%',
       protectedWeekendDays,
       totalWeekendDays,
       status,
       color,
-      recommendation
+      recommendation,
+      daysSinceLastBreak,
+      longestRecentBreak: longestBreakDays
     }
   }
 
@@ -693,12 +784,26 @@ export default function Hours() {
     else if (redEyeVal > 10) riskScore += 15
     else riskScore += 5
     
-    const daysNoBreak = weekends.daysSinceLastFull24h
-    if (daysNoBreak > 14) riskScore += 25
-    else if (daysNoBreak > 10) riskScore += 20
-    else if (daysNoBreak > 7) riskScore += 10
-    else riskScore += 3
-    
+    const daysNoBreak = weekends.daysSinceLastBreak || 0
+    const longestBreak = weekends.longestRecentBreak || 0
+
+    // Give massive credit for recent extended breaks
+    if (longestBreak >= 7) {
+      riskScore += 0  // 7+ day break = near-zero recovery risk
+    } else if (longestBreak >= 4) {
+      riskScore += Math.min(15, daysNoBreak * 0.5)  // 4-6 day break = low risk
+    } else if (longestBreak >= 2) {
+      riskScore += Math.min(20, daysNoBreak * 1)  // 2-3 day break = moderate risk
+    } else if (daysNoBreak > 21) {
+      riskScore += 25  // No breaks + 21+ days = critical
+    } else if (daysNoBreak > 14) {
+      riskScore += 20
+    } else if (daysNoBreak > 7) {
+      riskScore += 10
+    } else {
+      riskScore += 5
+    }
+
     let overallStatus = 'Healthy'
     let overallColor = '#34C759'
     let urgency = ''
@@ -707,7 +812,7 @@ export default function Hours() {
       overallStatus = 'CRITICAL BURNOUT RISK'
       overallColor = '#FF3B30'
       urgency = '🔴 IMMEDIATE: Combined metrics indicate high burnout risk. Take recovery action within 48 hours.'
-    } else if (riskScore >= 60) {
+    } else if (riskScore >= 65) {
       overallStatus = 'HIGH RISK'
       overallColor = '#FF3B30'
       urgency = '🔴 ALERT: Multiple burnout indicators. Schedule recovery. Avoid taking on additional commitments.'
@@ -715,6 +820,10 @@ export default function Hours() {
       overallStatus = 'ELEVATED'
       overallColor = '#FF9500'
       urgency = '🟡 CAUTION: Burnout metrics elevated. Monitor closely. Plan recovery within 1-2 weeks.'
+    } else if (riskScore >= 20) {
+      overallStatus = 'MODERATE'
+      overallColor = '#007AFF'
+      urgency = '🔵 WATCH: Some elevation in metrics. Continue monitoring. Maintain recovery practices.'
     } else {
       overallStatus = 'SUSTAINABLE'
       overallColor = '#34C759'

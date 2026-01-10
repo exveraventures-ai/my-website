@@ -95,18 +95,21 @@ export default function Compare() {
       const thirtyDaysAgo = new Date(today)
       thirtyDaysAgo.setDate(today.getDate() - 30)
 
+      // Filter only completed entries (have both start and end time)
+      const completedLogs = logs.filter(log => log['Start Time'] && log['End Time'])
+      
       // L7D
-      const last7Days = logs.filter(log => new Date(log.Date) >= sevenDaysAgo)
+      const last7Days = completedLogs.filter(log => new Date(log.Date) >= sevenDaysAgo)
       const l7dTotal = last7Days.reduce((sum, log) => sum + (log.hours || 0), 0)
 
       // L30D
-      const last30Days = logs.filter(log => new Date(log.Date) >= thirtyDaysAgo)
+      const last30Days = completedLogs.filter(log => new Date(log.Date) >= thirtyDaysAgo)
       const l30dTotal = last30Days.reduce((sum, log) => sum + (log.hours || 0), 0)
       const l30dAvgWeekly = last30Days.length > 0 ? (l30dTotal / last30Days.length * 7) : 0
 
       // All time
-      const allTimeTotal = logs.reduce((sum, log) => sum + (log.hours || 0), 0)
-      const allTimeAvgWeekly = logs.length > 0 ? (allTimeTotal / logs.length * 7) : 0
+      const allTimeTotal = completedLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
+      const allTimeAvgWeekly = completedLogs.length > 0 ? (allTimeTotal / completedLogs.length * 7) : 0
 
       setUserStats({
         l7dTotal,
