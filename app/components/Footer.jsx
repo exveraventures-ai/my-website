@@ -24,7 +24,7 @@ export default function Footer() {
               color: '#1d1d1f',
               marginBottom: '16px'
             }}>
-              Work<span style={{ color: '#34C759' }}>Well</span>
+              Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
             </div>
             <p style={{
               fontSize: '14px',

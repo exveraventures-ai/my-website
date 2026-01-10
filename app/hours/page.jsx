@@ -38,7 +38,7 @@ const inputStyle = {
 const buttonStyle = {
   flex: '1 1 140px',
   padding: '12px 28px', 
-  backgroundColor: '#FF6B6B', 
+  backgroundColor: '#4F46E5', 
   color: 'white', 
   border: 'none', 
   borderRadius: '10px', 
@@ -47,7 +47,7 @@ const buttonStyle = {
   fontSize: '16px',
   fontFamily: 'inherit',
   transition: 'background-color 0.2s',
-  boxShadow: '0 2px 8px rgba(0,122,255,0.2)'
+  boxShadow: '0 2px 8px rgba(79,70,229,0.3)'
 }
 
 const tableHeaderStyle = {
@@ -77,7 +77,7 @@ const tableInputStyle = {
 
 const editButtonStyle = {
   padding: '6px 12px',
-  backgroundColor: '#FF6B6B',
+  backgroundColor: '#4F46E5',
   color: 'white',
   border: 'none',
   borderRadius: '6px',
@@ -149,7 +149,7 @@ export default function Hours() {
   const [userPreferences, setUserPreferences] = useState(null)
   const [showAllEntries, setShowAllEntries] = useState(false)
   const [isPro, setIsPro] = useState(false)
-  const [burnoutSectionCollapsed, setBurnoutSectionCollapsed] = useState(false)
+  const [burnoutSectionCollapsed, setBurnoutSectionCollapsed] = useState(true)
 
   useEffect(() => {
     document.title = 'Burnout IQ - Working Hours'
@@ -183,6 +183,13 @@ export default function Hours() {
         .single()
 
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         localStorage.setItem('burnoutiQ_user_id', profile.id)
         storedUserId = profile.id
         setUserId(profile.id)
@@ -221,6 +228,13 @@ export default function Hours() {
         .single()
 
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         setUserProfile(profile)
         setIsPro(profile.is_pro || false)
         
@@ -904,7 +918,19 @@ export default function Hours() {
   }
 
   const calculateAllMetrics = () => {
-    if (workLogs.length === 0) return null
+    if (workLogs.length === 0) {
+      return {
+        l7dTotal: '0',
+        l7dAvgDaily: '0',
+        allTimeAvgDaily: '0',
+        currentStreak: 0,
+        l1m: '0',
+        l3m: '0',
+        l6m: '0',
+        ytd: '0',
+        ltm: '0'
+      }
+    }
 
     const today = new Date()
     const sevenDaysAgo = new Date(today)
@@ -915,18 +941,18 @@ export default function Hours() {
       return logDate >= sevenDaysAgo && logDate <= today
     })
     const l7dTotal = last7Days.reduce((sum, log) => sum + (log.hours || 0), 0)
-    const l7dAvgDaily = last7Days.length > 0 ? (l7dTotal / last7Days.length).toFixed(1) : 'n.m.'
+    const l7dAvgDaily = last7Days.length > 0 ? (l7dTotal / last7Days.length).toFixed(1) : '0'
     const l7dAvgWeekly = l7dTotal.toFixed(1)
 
     const allTimeAvgDaily = workLogs.length > 0
       ? (workLogs.reduce((sum, log) => sum + (log.hours || 0), 0) / workLogs.length).toFixed(1)
-      : 'n.m.'
+      : '0'
 
     const calculatePeriod = (days) => {
       const periodStart = new Date(today)
       periodStart.setDate(today.getDate() - days)
       const periodLogs = workLogs.filter(log => new Date(log.Date) >= periodStart)
-      if (periodLogs.length === 0) return 'n.m.'
+      if (periodLogs.length === 0) return '0'
       const total = periodLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
       return (total / periodLogs.length * 7).toFixed(1)
     }
@@ -959,7 +985,7 @@ export default function Hours() {
       ytd: (() => {
         const yearStart = new Date(today.getFullYear(), 0, 1)
         const ytdLogs = workLogs.filter(log => new Date(log.Date) >= yearStart)
-        if (ytdLogs.length === 0) return 'n.m.'
+        if (ytdLogs.length === 0) return '0'
         const total = ytdLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
         return (total / ytdLogs.length * 7).toFixed(1)
       })(),
@@ -1290,7 +1316,7 @@ export default function Hours() {
 
           <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
             <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Dashboard</a>
-            <a href="/hours" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#FF6B6B'}}>Working Hours</a>
+            <a href="/hours" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#4F46E5'}}>Working Hours</a>
             <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
             <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
 
@@ -1299,7 +1325,7 @@ export default function Hours() {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: isPro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: isPro ? '#FFD700' : '#4F46E5',
                   color: isPro ? '#1d1d1f' : 'white',
                   border: 'none',
                   borderRadius: '20px',
@@ -1388,6 +1414,26 @@ export default function Hours() {
                     >
                       ⚙️ Settings
                     </a>
+                    {userProfile?.is_admin && (
+                      <a
+                        href="/admin"
+                        onClick={() => setShowProfileMenu(false)}
+                        style={{
+                          display: 'block',
+                          padding: '14px 16px',
+                          color: '#1d1d1f',
+                          textDecoration: 'none',
+                          fontSize: '15px',
+                          fontWeight: '500',
+                          transition: 'background-color 0.2s',
+                          borderTop: '1px solid #e8e8ed'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        👑 Admin Panel
+                      </a>
+                    )}
 
                     <button
                       onClick={handleSignOut}
@@ -1570,10 +1616,10 @@ export default function Hours() {
         <div style={{ 
           marginBottom: '50px',
           position: 'relative',
-          backgroundColor: 'rgba(0,122,255,0.1)',
+          backgroundColor: 'rgba(79,70,229,0.1)',
           borderRadius: '16px',
           padding: '24px',
-          border: '1px solid rgba(0,122,255,0.3)'
+          border: '1px solid rgba(79,70,229,0.3)'
         }}>
           {/* Header with Collapse Button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: burnoutSectionCollapsed ? '0' : '24px' }}>
@@ -1589,7 +1635,7 @@ export default function Hours() {
               {isPro && !burnoutSectionCollapsed && (
                 <a href="/science" style={{
                   padding: '8px 14px',
-                  backgroundColor: '#FF6B6B',
+                  backgroundColor: '#4F46E5',
                   color: 'white',
                   borderRadius: '20px',
                   fontSize: '13px',
@@ -1597,7 +1643,7 @@ export default function Hours() {
                   textDecoration: 'none',
                   transition: 'background-color 0.2s',
                   whiteSpace: 'nowrap'
-                }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0051D5'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007AFF'}>
+                }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4338CA'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4F46E5'}>
                   📚 See the Science
                 </a>
               )}
@@ -1631,24 +1677,18 @@ export default function Hours() {
           </div>
 
           {!burnoutSectionCollapsed && (
-            <div style={{ position: 'relative' }}>
-              {!isPro && (
+            <>
+              {!isPro ? (
                 <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
                   backgroundColor: 'rgba(255, 255, 255, 0.95)',
                   borderRadius: '12px',
-                  zIndex: 10,
+                  padding: '60px 40px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '40px',
                   textAlign: 'center',
-                  pointerEvents: 'auto'
+                  minHeight: '300px'
                 }}>
                   <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔒</div>
                   <h3 style={{ 
@@ -1673,24 +1713,23 @@ export default function Hours() {
                     href="/upgrade"
                     style={{
                       padding: '12px 24px',
-                      backgroundColor: '#FF6B6B',
+                      backgroundColor: '#4F46E5',
                       color: 'white',
                       textDecoration: 'none',
                       borderRadius: '8px',
                       fontSize: '16px',
                       fontWeight: '600',
                       transition: 'background-color 0.2s',
-                      cursor: 'pointer',
-                      pointerEvents: 'auto'
+                      cursor: 'pointer'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0051D5'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007AFF'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4338CA'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4F46E5'}
                   >
                     Upgrade to Pro - £1.99/month
                   </a>
                 </div>
-              )}
-          
+              ) : (
+                <>
           {/* Overall Risk Score */}
           {burnout && (
             <div style={{ 
@@ -1763,7 +1802,7 @@ export default function Hours() {
                 </div>
                 <div style={{ fontSize: '13px', color: '#6e6e73', marginBottom: '12px' }}>
                   {isPro ? `${redEye.status} • ${redEye.lateNightHours}h late-night (${redEye.daysWithLateWork}d) • ` : ''}
-                  {isPro && <a href="/science" style={{ color: '#FF6B6B', textDecoration: 'none', fontWeight: '500' }}>Learn more</a>}
+                  {isPro && <a href="/science" style={{ color: '#4F46E5', textDecoration: 'none', fontWeight: '500' }}>Learn more</a>}
                   {!isPro && 'Pro feature'}
                 </div>
                 <div style={{ fontSize: '13px', color: '#1d1d1f', lineHeight: '1.6', padding: '12px', backgroundColor: isPro ? '#f5f5f7' : '#e8e8ed', borderRadius: '8px' }}>
@@ -1802,7 +1841,7 @@ export default function Hours() {
                   </div>
                   <div style={{ fontSize: '13px', color: '#6e6e73', marginBottom: '12px' }}>
                     {isPro ? `${weekends.status} · ${weekends.protectedWeekendDays}/${weekends.totalWeekendDays} days protected ` : ''}
-                    {isPro && <a href="/science" style={{ color: '#FF6B6B', textDecoration: 'none', fontWeight: '500' }}>Learn more</a>}
+                    {isPro && <a href="/science" style={{ color: '#4F46E5', textDecoration: 'none', fontWeight: '500' }}>Learn more</a>}
                     {!isPro && 'Pro feature'}
                   </div>
                   <div style={{
@@ -1842,7 +1881,9 @@ export default function Hours() {
               </div>
             )}
           </div>
-            </div>
+                </>
+              )}
+          </>
           )}
         </div>
 
@@ -1873,17 +1914,17 @@ export default function Hours() {
               />
               <MetricCard 
                 label="L7D Total" 
-                value={metrics.l7dTotal + ' hrs'}
+                value={metrics.l7dTotal !== 'n.m.' ? metrics.l7dTotal + ' hrs' : '0 hrs'}
                 sublabel="Last 7 days"
               />
               <MetricCard 
                 label="L7D Daily Avg" 
-                value={metrics.l7dAvgDaily + ' hrs'}
+                value={metrics.l7dAvgDaily !== 'n.m.' ? metrics.l7dAvgDaily + ' hrs' : '0 hrs'}
                 sublabel="Per day"
               />
               <MetricCard 
                 label="Historical Avg" 
-                value={metrics.allTimeAvgDaily + ' hrs'}
+                value={metrics.allTimeAvgDaily !== 'n.m.' ? metrics.allTimeAvgDaily + ' hrs' : '0 hrs'}
                 sublabel="All-time daily"
               />
               {weeklyGoalPace && (
@@ -1917,7 +1958,7 @@ export default function Hours() {
                   fontSize: '15px',
                   fontFamily: 'inherit',
                   transition: 'all 0.2s',
-                  boxShadow: timePeriod === period ? '0 2px 8px rgba(0,122,255,0.2)' : 'none'
+                  boxShadow: timePeriod === period ? '0 2px 8px rgba(79,70,229,0.3)' : 'none'
                 }}
               >
                 {period}
@@ -1975,7 +2016,7 @@ export default function Hours() {
                   }}
                 />
                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                <Bar yAxisId="left" dataKey="hours" fill="#FF6B6B" name="Daily Hours" radius={[4, 4, 0, 0]} />
+                <Bar yAxisId="left" dataKey="hours" fill="#4F46E5" name="Daily Hours" radius={[4, 4, 0, 0]} />
                 <Line 
                   yAxisId="right"
                   type="monotone" 
@@ -2124,7 +2165,7 @@ export default function Hours() {
                     onClick={() => setShowAllEntries(true)}
                     style={{
                       padding: '10px 20px',
-                      backgroundColor: '#FF6B6B',
+                      backgroundColor: '#4F46E5',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
@@ -2134,8 +2175,8 @@ export default function Hours() {
                       fontFamily: 'inherit',
                       transition: 'background-color 0.2s'
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0051D5'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#007AFF'}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#4338CA'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4F46E5'}
                   >
                     Show More ({workLogs.length - last7DaysCount} more entries)
                   </button>

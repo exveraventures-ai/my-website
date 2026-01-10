@@ -15,7 +15,21 @@ export default function Home() {
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session) {
-      router.push('/dashboard')
+      // Check if user is approved
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', session.user.email)
+        .single()
+
+      if (profile) {
+        if (profile.is_approved || profile.is_admin) {
+          router.push('/dashboard')
+        } else {
+          // User not approved, keep them on landing page
+          await supabase.auth.signOut()
+        }
+      }
     }
   }
 
@@ -27,7 +41,7 @@ export default function Home() {
     }}>
       {/* Hero Section */}
       <div style={{
-        background: 'linear-gradient(135deg, #4F46E5 0%, #FF6B6B 100%)',
+        background: 'linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)',
         padding: '120px 40px',
         textAlign: 'center',
         color: 'white'
@@ -52,7 +66,7 @@ export default function Home() {
           Track your working hours, analyze burnout risk with comprehensive metrics, maintain work-life balance, and compare with peers in finance
         </p>
         <a 
-          href="/login"
+          href="/request-access"
           style={{
             display: 'inline-block',
             padding: '18px 48px',
@@ -68,7 +82,7 @@ export default function Home() {
           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
           onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
         >
-          Get Started
+          Request Access
         </a>
       </div>
 
@@ -156,11 +170,11 @@ export default function Home() {
           Join professionals tracking their hours sustainably
         </p>
         <a 
-          href="/login"
+          href="/request-access"
           style={{
             display: 'inline-block',
             padding: '18px 48px',
-            backgroundColor: '#FF6B6B',
+            backgroundColor: '#4F46E5',
             color: 'white',
             textDecoration: 'none',
             borderRadius: '12px',
@@ -169,7 +183,7 @@ export default function Home() {
             boxShadow: '0 8px 24px rgba(255,107,107,0.4)'
           }}
         >
-          Sign Up Free
+          Request Access
         </a>
       </div>
     </div>

@@ -36,7 +36,7 @@ export default function Science() {
             textDecoration: 'none',
             letterSpacing: '-0.02em'
           }}>
-            Work<span style={{ color: '#34C759' }}>Well</span>
+            Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
           </a>
 
           <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>

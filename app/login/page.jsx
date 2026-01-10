@@ -15,6 +15,13 @@ export default function Login() {
   useEffect(() => {
     document.title = 'Burnout IQ - Login'
     checkUser()
+    
+    // Check for pending approval message in URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const messageParam = urlParams.get('message')
+    if (messageParam === 'pending') {
+      setMessage('⚠️ Your account is pending approval. Please wait for admin approval to access the platform.')
+    }
   }, [])
 
   const checkUser = async () => {
@@ -31,17 +38,9 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        // Sign up
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        })
-
-        if (error) throw error
-
-        if (data?.user) {
-          setMessage('✓ Check your email to confirm your account!')
-        }
+        // Redirect to request access page instead of signing up directly
+        router.push('/request-access')
+        return
       } else {
         // Sign in
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -52,7 +51,7 @@ export default function Login() {
         if (error) throw error
 
         if (data?.session) {
-          // Check if user profile exists
+          // Check if user profile exists and is approved
           const { data: profile } = await supabase
             .from('users')
             .select('*')
@@ -60,10 +59,32 @@ export default function Login() {
             .single()
 
           if (profile) {
+            // Check if user is approved
+            if (!profile.is_approved) {
+              setMessage('⚠️ Your account is pending approval. Please wait for admin approval to access the platform.')
+              await supabase.auth.signOut()
+              return
+            }
+            
             localStorage.setItem('burnoutiQ_user_id', profile.id)
+            
+            // All approved users (including admins) go to dashboard
             router.push('/dashboard')
           } else {
-            router.push('/profile')
+            // No profile exists, check if there's a pending access request
+            const { data: accessRequest } = await supabase
+              .from('access_requests')
+              .select('*')
+              .eq('email', email)
+              .eq('status', 'pending')
+              .single()
+
+            if (accessRequest) {
+              setMessage('⚠️ Your access request is pending approval. Please wait for admin approval.')
+              await supabase.auth.signOut()
+            } else {
+              router.push('/profile')
+            }
           }
         }
       }
@@ -100,14 +121,14 @@ export default function Login() {
             color: '#1d1d1f',
             letterSpacing: '-0.03em'
           }}>
-            Work<span style={{ color: '#34C759' }}>Well</span>
+            Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
           </h1>
           <p style={{
             fontSize: '19px',
             color: '#6e6e73',
             margin: 0
           }}>
-            {isSignUp ? 'Create your account' : 'Sign in to continue'}
+            {isSignUp ? 'Request access to continue' : 'Sign in to continue'}
           </p>
         </div>
 
@@ -143,7 +164,7 @@ export default function Login() {
             style={{
               width: '100%',
               padding: '16px',
-              backgroundColor: '#007AFF',
+              backgroundColor: '#4F46E5',
               color: 'white',
               border: 'none',
               borderRadius: '12px',
@@ -176,20 +197,24 @@ export default function Login() {
         }}>
           <button
             onClick={() => {
-              setIsSignUp(!isSignUp)
-              setMessage('')
+              if (isSignUp) {
+                setIsSignUp(false)
+                setMessage('')
+              } else {
+                router.push('/request-access')
+              }
             }}
             style={{
               background: 'none',
               border: 'none',
-              color: '#007AFF',
+              color: '#4F46E5',
               fontSize: '15px',
               fontWeight: '500',
               cursor: 'pointer',
               fontFamily: 'inherit'
             }}
           >
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            {isSignUp ? 'Already have an account? Sign in' : "Don't have access? Request access"}
           </button>
         </div>
       </div>

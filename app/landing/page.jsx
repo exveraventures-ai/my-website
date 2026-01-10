@@ -27,16 +27,16 @@ export default function Landing() {
             <a href="#features" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Features</a>
             <a href="#pricing" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Pricing</a>
             <a href="/login" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Sign In</a>
-            <a href="/signup" style={{
+            <a href="/request-access" style={{
               padding: '10px 20px',
-              backgroundColor: '#FF6B6B',
+              backgroundColor: '#4F46E5',
               color: 'white',
               textDecoration: 'none',
               borderRadius: '20px',
               fontSize: '15px',
               fontWeight: '600'
             }}>
-              Get Started Free
+              Request Access
             </a>
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function Landing() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #4F46E5 0%, #1a1a2e 50%, #FF6B6B 100%)',
+        background: 'linear-gradient(135deg, #4F46E5 0%, #1a1a2e 50%, #06B6D4 100%)',
         padding: '100px 40px 60px'
       }}>
         <div style={{ maxWidth: '1000px', textAlign: 'center' }}>
@@ -71,17 +71,17 @@ export default function Landing() {
             Built for high-intensity professionals. Monitor work intensity, compare with peers, and maintain sustainable performance across banking, PE, consulting, tech, and more.
           </p>
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-            <a href="/signup" style={{
+            <a href="/request-access" style={{
               padding: '16px 32px',
-              backgroundColor: '#FF6B6B',
+              backgroundColor: '#4F46E5',
               color: 'white',
               textDecoration: 'none',
               borderRadius: '12px',
               fontSize: '17px',
               fontWeight: '600',
-              boxShadow: '0 8px 24px rgba(255,107,107,0.4)'
+              boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
             }}>
-              Start Free Trial
+              Request Access
             </a>
             <a href="#features" style={{
               padding: '16px 32px',
@@ -143,7 +143,7 @@ export default function Landing() {
       {/* Pro Features Section */}
       <section id="pro-features" style={{
         padding: '100px 40px',
-        backgroundColor: 'rgba(255,107,107,0.1)',
+        backgroundColor: 'rgba(79,70,229,0.1)',
         borderTop: '1px solid rgba(255,255,255,0.1)'
       }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -151,14 +151,14 @@ export default function Landing() {
             <div style={{
               display: 'inline-block',
               padding: '8px 20px',
-              backgroundColor: 'rgba(255,107,107,0.2)',
+              backgroundColor: 'rgba(79,70,229,0.2)',
               borderRadius: '20px',
               marginBottom: '20px'
             }}>
               <span style={{
                 fontSize: '14px',
                 fontWeight: '600',
-                color: '#FF6B6B',
+                color: '#4F46E5',
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em'
               }}>
@@ -260,9 +260,9 @@ export default function Landing() {
           <div style={{
             textAlign: 'center',
             padding: '40px',
-            backgroundColor: 'rgba(255,107,107,0.1)',
+            backgroundColor: 'rgba(79,70,229,0.1)',
             borderRadius: '16px',
-            border: '1px solid rgba(255,107,107,0.3)'
+            border: '1px solid rgba(79,70,229,0.3)'
           }}>
             <h3 style={{
               fontSize: '32px',
@@ -285,13 +285,13 @@ export default function Landing() {
             <a href="/signup?plan=pro" style={{
               display: 'inline-block',
               padding: '16px 32px',
-              backgroundColor: '#FF6B6B',
+              backgroundColor: '#4F46E5',
               color: 'white',
               textDecoration: 'none',
               borderRadius: '12px',
               fontSize: '17px',
               fontWeight: '600',
-              boxShadow: '0 8px 24px rgba(255,107,107,0.4)'
+              boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
             }}>
               Start Pro Trial - £1.99/month
             </a>
@@ -385,7 +385,7 @@ function FeatureCard({ icon, title, description, isPro, disabled }) {
           top: '16px',
           right: '16px',
           padding: '4px 12px',
-          backgroundColor: '#FF6B6B',
+          backgroundColor: '#4F46E5',
           color: 'white',
           borderRadius: '12px',
           fontSize: '11px',
@@ -407,7 +407,7 @@ function ProFeatureCard({ icon, title, description }) {
       backgroundColor: 'rgba(255,255,255,0.05)',
       padding: '32px',
       borderRadius: '16px',
-      border: '1px solid rgba(255,107,107,0.2)',
+      border: '1px solid rgba(79,70,229,0.2)',
       position: 'relative'
     }}>
       <div style={{ fontSize: '40px', marginBottom: '16px' }}>{icon}</div>
@@ -420,10 +420,10 @@ function ProFeatureCard({ icon, title, description }) {
 function PricingCard({ title, price, period, features, cta, ctaLink, highlighted }) {
   return (
     <div style={{
-      backgroundColor: highlighted ? 'rgba(255,107,107,0.1)' : 'rgba(255,255,255,0.05)',
+      backgroundColor: highlighted ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.05)',
       padding: '40px',
       borderRadius: '16px',
-      border: highlighted ? '2px solid #FF6B6B' : '1px solid rgba(255,255,255,0.1)',
+      border: highlighted ? '2px solid #4F46E5' : '1px solid rgba(255,255,255,0.1)',
       position: 'relative'
     }}>
       {highlighted && (
@@ -433,7 +433,7 @@ function PricingCard({ title, price, period, features, cta, ctaLink, highlighted
           left: '50%',
           transform: 'translateX(-50%)',
           padding: '4px 16px',
-          backgroundColor: '#FF6B6B',
+          backgroundColor: '#4F46E5',
           color: 'white',
           borderRadius: '12px',
           fontSize: '12px',
@@ -462,7 +462,7 @@ function PricingCard({ title, price, period, features, cta, ctaLink, highlighted
       <a href={ctaLink} style={{
         display: 'block',
         padding: '14px',
-        backgroundColor: highlighted ? '#FF6B6B' : 'rgba(255,255,255,0.1)',
+        backgroundColor: highlighted ? '#4F46E5' : 'rgba(255,255,255,0.1)',
         color: 'white',
         textDecoration: 'none',
         borderRadius: '10px',

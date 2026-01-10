@@ -45,6 +45,13 @@ export default function Upgrade() {
         .single()
 
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         localStorage.setItem('burnoutiQ_user_id', profile.id)
         storedUserId = profile.id
         setUserId(profile.id)
@@ -64,6 +71,13 @@ export default function Upgrade() {
       .single()
 
     if (profile) {
+      // Check if user is approved
+      if (!profile.is_approved && !profile.is_admin) {
+        await supabase.auth.signOut()
+        router.push('/login?message=pending')
+        return
+      }
+      
       setUserProfile(profile)
       if (profile.is_pro) {
         setMessage('You already have Pro!')
@@ -169,7 +183,7 @@ export default function Upgrade() {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
                   color: userProfile?.is_pro ? '#1d1d1f' : 'white',
                   borderRadius: '20px',
                   fontWeight: '600',
@@ -222,7 +236,7 @@ export default function Upgrade() {
                         <div style={{ fontSize: '13px', color: '#6e6e73' }}>
                           {userProfile.position} · {userProfile.company}
                           {userProfile.is_pro && (
-                            <span style={{ marginLeft: '8px', padding: '2px 8px', backgroundColor: '#FF6B6B', color: 'white', borderRadius: '8px', fontSize: '11px', fontWeight: '600' }}>
+                            <span style={{ marginLeft: '8px', padding: '2px 8px', backgroundColor: '#4F46E5', color: 'white', borderRadius: '8px', fontSize: '11px', fontWeight: '600' }}>
                               PRO
                             </span>
                           )}
@@ -333,7 +347,7 @@ export default function Upgrade() {
           marginBottom: '30px',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: '72px', fontWeight: '700', color: '#FF6B6B', marginBottom: '8px' }}>
+          <div style={{ fontSize: '72px', fontWeight: '700', color: '#4F46E5', marginBottom: '8px' }}>
             £1.99
           </div>
           <div style={{ fontSize: '19px', color: '#6e6e73', marginBottom: '40px' }}>
@@ -399,7 +413,7 @@ export default function Upgrade() {
               style={{
                 width: '100%',
                 padding: '16px',
-                backgroundColor: '#FF6B6B',
+                backgroundColor: '#4F46E5',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',

@@ -38,6 +38,14 @@ export default function Profile() {
   }, [])
 
   const loadUserProfile = async () => {
+    // Check authentication first
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      router.push('/login')
+      return
+    }
+    
     const storedUserId = localStorage.getItem('burnoutiQ_user_id')
     
     if (storedUserId) {
@@ -50,7 +58,34 @@ export default function Profile() {
         .single()
       
       if (data) {
+        // Check if user is approved
+        if (!data.is_approved && !data.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         setFormData(data)
+      }
+    } else {
+      // Try to get profile by email
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', session.user.email)
+        .single()
+      
+      if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
+        localStorage.setItem('burnoutiQ_user_id', profile.id)
+        setUserId(profile.id)
+        setFormData(profile)
       }
     }
   }
@@ -263,7 +298,7 @@ export default function Profile() {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: formData.is_pro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: formData.is_pro ? '#FFD700' : '#4F46E5',
                   color: formData.is_pro ? '#1d1d1f' : 'white',
                   borderRadius: '20px',
                   fontWeight: '600',
@@ -435,7 +470,7 @@ export default function Profile() {
                 onClick={() => setIsEditMode(true)}
                 style={{
                   padding: '12px 24px',
-                  backgroundColor: '#FF6B6B',
+                  backgroundColor: '#4F46E5',
                   color: 'white',
                   border: 'none',
                   borderRadius: '10px',
@@ -565,7 +600,7 @@ export default function Profile() {
                 style={{
                   flex: '1',
                   padding: '16px 32px',
-                  backgroundColor: '#FF6B6B',
+                  backgroundColor: '#4F46E5',
                   color: 'white',
                   border: 'none',
                   borderRadius: '10px',

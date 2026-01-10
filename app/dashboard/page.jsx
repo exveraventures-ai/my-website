@@ -49,6 +49,13 @@ export default function Dashboard() {
         .single()
       
       if (profile) {
+        // Check if user is approved (unless they're an admin)
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         localStorage.setItem('burnoutiQ_user_id', profile.id)
         storedUserId = profile.id
         setUserId(profile.id)
@@ -67,6 +74,13 @@ export default function Dashboard() {
         .single()
       
       if (profile) {
+        // Check if user is approved (unless they're an admin)
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         setUserProfile(profile)
       }
     }
@@ -165,7 +179,7 @@ export default function Dashboard() {
         intensityColor = '#FF9500'
       } else if (ratio <= 0.85) {
         intensityStatus = 'Light'
-        intensityColor = '#FF6B6B'
+        intensityColor = '#4F46E5'
       }
     }
 
@@ -242,7 +256,7 @@ export default function Dashboard() {
       color = '#FF9500'
     } else if (average > 60) {
       status = 'Active Diligence'
-      color = '#FF6B6B'
+      color = '#4F46E5'
     } else {
       status = 'Portfolio Mode'
       color = '#34C759'
@@ -541,7 +555,7 @@ export default function Dashboard() {
       color = '#FF9500'
     } else if (intensityIndex <= 85) {
       status = 'Light'
-      color = '#FF6B6B'
+      color = '#4F46E5'
     }
 
     return {
@@ -647,7 +661,7 @@ export default function Dashboard() {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
                   color: userProfile?.is_pro ? '#1d1d1f' : 'white',
                   borderRadius: '20px',
                   fontWeight: '600',
@@ -736,6 +750,26 @@ export default function Dashboard() {
                     >
                       ⚙️ Settings
                     </a>
+                    {userProfile?.is_admin && (
+                      <a
+                        href="/admin"
+                        onClick={() => setShowProfileMenu(false)}
+                        style={{
+                          display: 'block',
+                          padding: '12px 16px',
+                          color: '#1d1d1f',
+                          textDecoration: 'none',
+                          fontSize: '15px',
+                          fontFamily: 'inherit',
+                          transition: 'background-color 0.2s',
+                          borderTop: '1px solid #e8e8ed'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        👑 Admin Panel
+                      </a>
+                    )}
                     <div style={{
                       borderTop: '1px solid #e8e8ed'
                     }}>
@@ -994,7 +1028,7 @@ export default function Dashboard() {
             borderRadius: '16px',
             marginBottom: '50px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-            border: '2px solid #FF6B6B',
+            border: '2px solid #4F46E5',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -1024,7 +1058,7 @@ export default function Dashboard() {
               style={{
                 display: 'inline-block',
                 padding: '12px 24px',
-                backgroundColor: '#FF6B6B',
+                backgroundColor: '#4F46E5',
                 color: 'white',
                 textDecoration: 'none',
                 borderRadius: '20px',
@@ -1073,7 +1107,7 @@ export default function Dashboard() {
                 <a href="/hours" style={{
                   display: 'inline-block',
                   padding: '12px 24px',
-                  backgroundColor: '#FF6B6B',
+                  backgroundColor: '#4F46E5',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '10px',
@@ -1110,7 +1144,7 @@ export default function Dashboard() {
                       fontSize: '13px'
                     }}
                   />
-                  <Bar yAxisId="left" dataKey="hours" fill="#FF6B6B" name="Daily Hours" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left" dataKey="hours" fill="#4F46E5" name="Daily Hours" radius={[4, 4, 0, 0]} />
                   <Line 
                     yAxisId="right"
                     type="monotone" 
@@ -1155,7 +1189,7 @@ export default function Dashboard() {
             <a href="/health" style={{
               display: 'inline-block',
               padding: '12px 28px',
-              backgroundColor: '#FF6B6B',
+              backgroundColor: '#4F46E5',
               color: 'white',
               textDecoration: 'none',
               borderRadius: '10px',

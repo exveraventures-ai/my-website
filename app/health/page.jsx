@@ -46,6 +46,13 @@ export default function Health() {
         .single()
       
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         localStorage.setItem('burnoutiQ_user_id', profile.id)
         storedUserId = profile.id
         setUserId(profile.id)
@@ -64,6 +71,13 @@ export default function Health() {
         .single()
       
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         setUserProfile(profile)
       }
     }
@@ -123,14 +137,14 @@ export default function Health() {
           <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
             <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Dashboard</a>
             <a href="/hours" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Working Hours</a>
-            <a href="/health" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#FF6B6B'}}>Health Stats</a>
+            <a href="/health" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#4F46E5'}}>Health Stats</a>
             <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
                   color: userProfile?.is_pro ? '#1d1d1f' : 'white',
                   borderRadius: '20px',
                   fontWeight: '600',
@@ -336,7 +350,7 @@ export default function Health() {
           <a href="/hours" style={{
             display: 'inline-block',
             padding: '16px 40px',
-            backgroundColor: '#FF6B6B',
+            backgroundColor: '#4F46E5',
             color: 'white',
             textDecoration: 'none',
             borderRadius: '12px',
@@ -488,8 +502,8 @@ export default function Health() {
         <div style={{
           marginTop: '50px',
           padding: '50px',
-          backgroundColor: 'linear-gradient(135deg, #4F46E5 0%, #FF6B6B 100%)',
-          background: 'linear-gradient(135deg, #4F46E5 0%, #FF6B6B 100%)',
+          backgroundColor: 'linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)',
+          background: 'linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)',
           borderRadius: '20px',
           textAlign: 'center',
           color: 'white'

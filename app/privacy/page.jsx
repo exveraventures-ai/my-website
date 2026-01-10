@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
       }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <a href="/" style={{ fontSize: '24px', fontWeight: '700', color: '#1d1d1f', textDecoration: 'none' }}>
-            Work<span style={{ color: '#34C759' }}>Well</span>
+            Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
           </a>
           <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
             <a href="/login" style={{ color: '#1d1d1f', textDecoration: 'none', fontSize: '15px' }}>Sign In</a>

@@ -45,6 +45,13 @@ export default function Compare() {
         .single()
       
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         localStorage.setItem('burnoutiQ_user_id', profile.id)
         storedUserId = profile.id
         setUserId(profile.id)
@@ -63,6 +70,13 @@ export default function Compare() {
         .single()
       
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         setUserProfile(profile)
       }
     }
@@ -180,13 +194,13 @@ export default function Compare() {
             <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Dashboard</a>
             <a href="/hours" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Working Hours</a>
             <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
-            <a href="/compare" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#FF6B6B'}}>Comparisons</a>
+            <a href="/compare" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#4F46E5'}}>Comparisons</a>
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
                   color: userProfile?.is_pro ? '#1d1d1f' : 'white',
                   borderRadius: '20px',
                   fontWeight: '600',
@@ -378,7 +392,7 @@ export default function Compare() {
             <a href="/hours" style={{
               display: 'inline-block',
               padding: '14px 32px',
-              backgroundColor: '#FF6B6B',
+              backgroundColor: '#4F46E5',
               color: 'white',
               textDecoration: 'none',
               borderRadius: '12px',
@@ -397,7 +411,7 @@ export default function Compare() {
               borderRadius: '16px',
               marginBottom: '40px',
               boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-              border: '2px solid #FF6B6B'
+              border: '2px solid #4F46E5'
             }}>
               <h2 style={{
                 fontSize: '24px',
@@ -484,7 +498,7 @@ export default function Compare() {
                 <a href="/upgrade" style={{
                   display: 'inline-block',
                   padding: '12px 24px',
-                  backgroundColor: '#FF6B6B',
+                  backgroundColor: '#4F46E5',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '10px',
@@ -636,10 +650,10 @@ function ComparisonCard({ title, yourValue, cohortAverage, cohortMedian, cohortP
       statusColor = '#FF9500'
     } else if (yourNum < parseFloat(cohortP25)) {
       status = 'Below 25th percentile'
-      statusColor = '#FF6B6B'
+      statusColor = '#4F46E5'
     } else if (yourNum < medianNum) {
       status = 'Below median'
-      statusColor = '#06B6D4'
+      statusColor = '#4F46E5'
     }
   } else {
     // Non-pro: simple comparison against average
@@ -648,7 +662,7 @@ function ComparisonCard({ title, yourValue, cohortAverage, cohortMedian, cohortP
       statusColor = '#FF9500'
     } else if (yourNum < averageNum * 0.9) {
       status = 'Below average'
-      statusColor = '#06B6D4'
+      statusColor = '#4F46E5'
     }
   }
 
@@ -759,7 +773,7 @@ function ComparisonCard({ title, yourValue, cohortAverage, cohortMedian, cohortP
               Upgrade to see percentile breakdowns (P25, Median, P75) and detailed comparisons.
             </div>
             <a href="/upgrade" style={{
-              color: '#FF6B6B',
+              color: '#4F46E5',
               textDecoration: 'none',
               fontWeight: '600',
               fontSize: '13px'

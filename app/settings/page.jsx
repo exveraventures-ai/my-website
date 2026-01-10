@@ -33,7 +33,7 @@ const inputStyle = {
 
 const buttonStyle = {
   padding: '12px 28px', 
-  backgroundColor: '#FF6B6B', 
+  backgroundColor: '#4F46E5', 
   color: 'white', 
   border: 'none', 
   borderRadius: '10px', 
@@ -96,6 +96,13 @@ export default function Settings() {
         .single()
 
       if (profile) {
+        // Check if user is approved
+        if (!profile.is_approved && !profile.is_admin) {
+          await supabase.auth.signOut()
+          router.push('/login?message=pending')
+          return
+        }
+        
         localStorage.setItem('burnoutiQ_user_id', profile.id)
         storedUserId = profile.id
         setUserId(profile.id)
@@ -115,6 +122,13 @@ export default function Settings() {
       .single()
 
     if (profile) {
+      // Check if user is approved
+      if (!profile.is_approved && !profile.is_admin) {
+        await supabase.auth.signOut()
+        router.push('/login?message=pending')
+        return
+      }
+      
       setUserProfile(profile)
       setFormData({
         default_start_time: profile.default_start_time || '09:30',
@@ -226,7 +240,7 @@ export default function Settings() {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#FF6B6B',
+                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
                   color: userProfile?.is_pro ? '#1d1d1f' : 'white',
                   borderRadius: '20px',
                   fontWeight: '600',
@@ -316,6 +330,26 @@ export default function Settings() {
                     >
                       ⚙️ Settings
                     </a>
+                    {userProfile?.is_admin && (
+                      <a
+                        href="/admin"
+                        onClick={() => setShowProfileMenu(false)}
+                        style={{
+                          display: 'block',
+                          padding: '12px 16px',
+                          color: '#1d1d1f',
+                          textDecoration: 'none',
+                          fontSize: '15px',
+                          fontFamily: 'inherit',
+                          transition: 'background-color 0.2s',
+                          borderTop: '1px solid #e8e8ed'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        👑 Admin Panel
+                      </a>
+                    )}
                     <div style={{
                       borderTop: '1px solid #e8e8ed'
                     }}>
@@ -459,7 +493,7 @@ export default function Settings() {
                 style={buttonStyle}
                 disabled={saving}
                 onMouseEnter={(e) => !saving && (e.currentTarget.style.backgroundColor = '#0051D5')}
-                onMouseLeave={(e) => !saving && (e.currentTarget.style.backgroundColor = '#FF6B6B')}
+                onMouseLeave={(e) => !saving && (e.currentTarget.style.backgroundColor = '#4F46E5')}
               >
                 {saving ? 'Saving...' : 'Save Settings'}
               </button>
