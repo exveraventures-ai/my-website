@@ -287,7 +287,7 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
           )}
           {financeFlags.weekendCreep && (
             <div style={{ fontSize: '14px', color: '#1d1d1f' }}>
-              ⚠️ Weekend creep: Sat {financeFlags.saturdayTotal}h, Sun {financeFlags.sundayTotal}h. >4h = recovery debt.
+              ⚠️ Weekend creep: Sat {financeFlags.saturdayTotal}h, Sun {financeFlags.sundayTotal}h. {'>'}4h = recovery debt.
             </div>
           )}
         </div>
