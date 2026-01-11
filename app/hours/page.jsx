@@ -1212,7 +1212,7 @@ export default function Hours() {
         overallColor = '#FF3B30'
         const recoveryDate = new Date(today)
         recoveryDate.setDate(today.getDate() + 2)
-        urgency = `🔴 CRITICAL: L7D ${l7dAvg.toFixed(1)}h/day. 48h recovery by ${recoveryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}. >80h/wk=2x errors (JAMA).`
+        urgency = `🔴 CRITICAL: L7D ${l7dAvg.toFixed(1)}h/day. 48h recovery by ${recoveryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}. ${'>'}80h/wk=2x errors (JAMA).`
       } else if (riskScore >= 60) {
         overallStatus = 'HIGH RISK 🟠'
         overallColor = '#FF9500'

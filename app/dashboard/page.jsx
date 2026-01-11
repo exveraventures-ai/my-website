@@ -1122,7 +1122,7 @@ export default function Dashboard() {
                 )}
                 {userProfile?.is_pro && burnoutRisk.riskScore >= 85 && (
                   <div style={{ fontSize: '11px', color: '#FF3B30', fontWeight: '700', marginTop: '4px', padding: '6px 10px', backgroundColor: '#fff5f5', borderRadius: '6px' }}>
-                    CRITICAL: L7D {burnoutRisk.l7d}h. >80h/wk=2x errors (JAMA)
+                    CRITICAL: L7D {burnoutRisk.l7d}h. {'>'}80h/wk=2x errors (JAMA)
                   </div>
                 )}
               </div>
