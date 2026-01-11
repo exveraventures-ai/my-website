@@ -266,18 +266,6 @@ export default function Hours() {
     if (!error && logs) {
       setWorkLogs(logs)
       
-      // Check for existing partial entry (clocked in but not clocked out) for today
-      const today = new Date().toISOString().split('T')[0]
-      const todayLog = logs.find(log => log.Date === today && log['Start Time'] && !log['End Time'])
-      if (todayLog) {
-        setClockedIn(true)
-        setClockInTime(todayLog['Start Time'])
-        setPartialEntry(todayLog)
-      } else {
-        setClockedIn(false)
-        setClockInTime(null)
-        setPartialEntry(null)
-      }
     }
 
     setLoading(false)
@@ -1009,7 +997,11 @@ export default function Hours() {
       // Find longest break (dashboard methodology - simpler inline calculation)
       let longestBreak = 0
       let currentBreak = 0
-      for (const date of all90Days.sort()) {
+      // Sort dates in ascending order (oldest to newest)
+      const sortedDays = [...all90Days].sort((a, b) => {
+        return new Date(a) - new Date(b)
+      })
+      for (const date of sortedDays) {
         const hours = loggedDaysMap90[date] || 0
         if (hours < 2) {
           currentBreak++
