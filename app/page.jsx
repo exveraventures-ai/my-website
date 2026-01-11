@@ -2,36 +2,13 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from './lib/supabase'
 
 export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    document.title = 'Burnout IQ - Track Your Working Hours'
-    checkAuth()
-  }, [])
-
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      // Check if user is approved
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single()
-
-      if (profile) {
-        if (profile.is_approved || profile.is_admin) {
-          router.push('/dashboard')
-        } else {
-          // User not approved, keep them on landing page
-          await supabase.auth.signOut()
-        }
-      }
-    }
-  }
+    router.push('/landing')
+  }, [router])
 
   return (
     <div style={{ 

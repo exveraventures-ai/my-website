@@ -1,8 +1,34 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../lib/supabase'
 
 export default function Landing() {
+  const router = useRouter()
+  const [userProfile, setUserProfile] = useState(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', session.user.email)
+        .single()
+
+      if (profile && (profile.is_approved || profile.is_admin)) {
+        setUserProfile(profile)
+        setIsAuthenticated(true)
+      }
+    }
+  }
+
   return (
     <div style={{ 
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
@@ -25,19 +51,39 @@ export default function Landing() {
           </div>
           <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
             <a href="#features" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Features</a>
+            <a href="#preview" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Preview</a>
             <a href="#pricing" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Pricing</a>
-            <a href="/login" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Sign In</a>
-            <a href="/request-access" style={{
-              padding: '10px 20px',
-              backgroundColor: '#4F46E5',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '20px',
-              fontSize: '15px',
-              fontWeight: '600'
-            }}>
-              Request Access
-            </a>
+            {isAuthenticated ? (
+              <>
+                <a href="/dashboard" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Dashboard</a>
+                <a href="/hours" style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '20px',
+                  fontSize: '15px',
+                  fontWeight: '600'
+                }}>
+                  Track Hours
+                </a>
+              </>
+            ) : (
+              <>
+                <a href="/login" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Sign In</a>
+                <a href="/request-access" style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '20px',
+                  fontSize: '15px',
+                  fontWeight: '600'
+                }}>
+                  Request Access
+                </a>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -71,30 +117,207 @@ export default function Landing() {
             Built for high-intensity professionals. Monitor work intensity, compare with peers, and maintain sustainable performance across banking, PE, consulting, tech, and more.
           </p>
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-            <a href="/request-access" style={{
-              padding: '16px 32px',
-              backgroundColor: '#4F46E5',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '12px',
-              fontSize: '17px',
-              fontWeight: '600',
-              boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
+            {isAuthenticated ? (
+              <>
+                <a href="/hours" style={{
+                  padding: '16px 32px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontSize: '17px',
+                  fontWeight: '600',
+                  boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
+                }}>
+                  Start Tracking Hours
+                </a>
+                <a href="/dashboard" style={{
+                  padding: '16px 32px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontSize: '17px',
+                  fontWeight: '600',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  View Dashboard
+                </a>
+              </>
+            ) : (
+              <>
+                <a href="/request-access" style={{
+                  padding: '16px 32px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontSize: '17px',
+                  fontWeight: '600',
+                  boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
+                }}>
+                  Request Access
+                </a>
+                <a href="#preview" style={{
+                  padding: '16px 32px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontSize: '17px',
+                  fontWeight: '600',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  See How It Works
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Hours Page Preview Section */}
+      <section id="preview" style={{
+        padding: '100px 40px',
+        backgroundColor: '#0a0a0a',
+        borderTop: '1px solid rgba(255,255,255,0.1)'
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{
+              fontSize: '48px',
+              fontWeight: '700',
+              color: '#fff',
+              marginBottom: '20px'
             }}>
-              Request Access
-            </a>
-            <a href="#features" style={{
-              padding: '16px 32px',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              color: 'white',
-              textDecoration: 'none',
-              borderRadius: '12px',
-              fontSize: '17px',
-              fontWeight: '600',
-              border: '1px solid rgba(255,255,255,0.2)'
+              See It In Action
+            </h2>
+            <p style={{
+              fontSize: '20px',
+              color: 'rgba(255,255,255,0.7)',
+              maxWidth: '700px',
+              margin: '0 auto'
             }}>
-              See How It Works
-            </a>
+              Get a glimpse of what your hours tracking dashboard looks like
+            </p>
+          </div>
+
+          {/* Preview Container */}
+          <div style={{
+            backgroundColor: '#f5f5f7',
+            borderRadius: '16px',
+            padding: '40px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            {/* Mock Header */}
+            <div style={{
+              backgroundColor: 'white',
+              padding: '20px 40px',
+              borderRadius: '12px',
+              marginBottom: '30px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ fontSize: '28px', fontWeight: '600', color: '#1d1d1f', margin: 0 }}>Working Hours</h3>
+              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                <span style={{ fontSize: '14px', color: '#6e6e73' }}>Dashboard</span>
+                <span style={{ fontSize: '14px', color: '#4F46E5', fontWeight: '600' }}>Working Hours</span>
+                <span style={{ fontSize: '14px', color: '#6e6e73' }}>Health Stats</span>
+              </div>
+            </div>
+
+            {/* Mock Stats Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '20px',
+              marginBottom: '30px'
+            }}>
+              <StatCard label="L7D Average" value="10.2h" color="#34C759" />
+              <StatCard label="Weekly Total" value="71.4h" color="#FF9500" />
+              <StatCard label="Streak" value="12 days" color="#4F46E5" />
+              <StatCard label="Risk Score" value="45 🟡" color="#FFD700" />
+            </div>
+
+            {/* Mock Hours Entry Form */}
+            <div style={{
+              backgroundColor: 'white',
+              padding: '30px',
+              borderRadius: '12px',
+              marginBottom: '30px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+            }}>
+              <h4 style={{ fontSize: '20px', fontWeight: '600', color: '#1d1d1f', marginBottom: '20px' }}>Log Hours</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '15px' }}>
+                <input placeholder="Date" style={{ padding: '12px', border: '1px solid #e8e8ed', borderRadius: '8px', fontSize: '14px' }} />
+                <input placeholder="Start Time" style={{ padding: '12px', border: '1px solid #e8e8ed', borderRadius: '8px', fontSize: '14px' }} />
+                <input placeholder="End Time" style={{ padding: '12px', border: '1px solid #e8e8ed', borderRadius: '8px', fontSize: '14px' }} />
+                <input placeholder="Adjustment" style={{ padding: '12px', border: '1px solid #e8e8ed', borderRadius: '8px', fontSize: '14px' }} />
+                <button style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}>
+                  Add Entry
+                </button>
+              </div>
+            </div>
+
+            {/* Mock Chart Preview */}
+            <div style={{
+              backgroundColor: 'white',
+              padding: '30px',
+              borderRadius: '12px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.05)'
+            }}>
+              <h4 style={{ fontSize: '20px', fontWeight: '600', color: '#1d1d1f', marginBottom: '20px' }}>Weekly Trend</h4>
+              <div style={{
+                height: '200px',
+                backgroundColor: '#f5f5f7',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'space-around',
+                padding: '20px',
+                gap: '10px'
+              }}>
+                {[45, 65, 55, 75, 80, 70, 65].map((height, idx) => (
+                  <div key={idx} style={{
+                    flex: 1,
+                    backgroundColor: idx === 4 ? '#4F46E5' : '#06B6D4',
+                    height: `${height}%`,
+                    borderRadius: '4px 4px 0 0',
+                    minHeight: '20px'
+                  }} />
+                ))}
+              </div>
+            </div>
+
+            {!isAuthenticated && (
+              <div style={{ textAlign: 'center', marginTop: '40px' }}>
+                <a href="/request-access" style={{
+                  display: 'inline-block',
+                  padding: '16px 32px',
+                  backgroundColor: '#4F46E5',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
+                  fontSize: '17px',
+                  fontWeight: '600',
+                  boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
+                }}>
+                  Get Started - Request Access
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -413,6 +636,21 @@ function ProFeatureCard({ icon, title, description }) {
       <div style={{ fontSize: '40px', marginBottom: '16px' }}>{icon}</div>
       <h3 style={{ fontSize: '22px', fontWeight: '600', color: '#fff', marginBottom: '12px' }}>{title}</h3>
       <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{description}</p>
+    </div>
+  )
+}
+
+function StatCard({ label, value, color }) {
+  return (
+    <div style={{
+      backgroundColor: 'white',
+      padding: '24px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+      textAlign: 'center'
+    }}>
+      <div style={{ fontSize: '12px', color: '#6e6e73', marginBottom: '8px', fontWeight: '500' }}>{label}</div>
+      <div style={{ fontSize: '28px', fontWeight: '700', color: color }}>{value}</div>
     </div>
   )
 }
