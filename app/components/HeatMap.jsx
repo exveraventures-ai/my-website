@@ -244,10 +244,12 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
 
   const cellWidth = 30
   const cellHeight = 25
-  const padding = 10
-  const legendHeight = 60
-  const width = 24 * cellWidth + padding * 2 + 120 // 120 for day labels
-  const height = 7 * cellHeight + padding * 2 + legendHeight
+  const padding = 12
+  const dayLabelWidth = 80
+  const legendHeight = 70
+  const hourLabelHeight = 20
+  const baseWidth = 24 * cellWidth + padding * 2 + dayLabelWidth
+  const height = 7 * cellHeight + padding * 2 + legendHeight + hourLabelHeight
 
   // Order days: Monday through Sunday
   const displayDayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -297,16 +299,23 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
         backgroundColor: 'white',
         borderRadius: '12px',
         padding: '20px',
-        overflowX: 'auto'
+        overflowX: 'auto',
+        width: '100%'
       }}>
-        <svg width={width} height={height} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+        <svg 
+          width="100%" 
+          height={height} 
+          viewBox={`0 0 ${baseWidth} ${height}`}
+          preserveAspectRatio="xMidYMin meet"
+          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', minWidth: `${baseWidth}px` }}
+        >
           {/* Day labels */}
           {displayDayOrder.map((dayName, dayIdx) => {
-            const y = padding + dayIdx * cellHeight + cellHeight / 2
+            const y = padding + hourLabelHeight + dayIdx * cellHeight + cellHeight / 2
             return (
               <text
                 key={dayName}
-                x={padding + 100}
+                x={padding + dayLabelWidth - 8}
                 y={y}
                 textAnchor="end"
                 dominantBaseline="middle"
@@ -322,12 +331,12 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
 
           {/* Hour labels (top) */}
           {Array.from({ length: 24 }, (_, hour) => {
-            const x = padding + 120 + hour * cellWidth + cellWidth / 2
+            const x = padding + dayLabelWidth + hour * cellWidth + cellWidth / 2
             return (
               <text
                 key={hour}
                 x={x}
-                y={padding - 5}
+                y={padding + hourLabelHeight - 8}
                 textAnchor="middle"
                 fontSize="10"
                 fill="#86868b"
@@ -341,8 +350,8 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
           {/* Heatmap cells */}
           {orderedHeatmapData.map((dayRow, dayIdx) => {
             return dayRow.map((cell, hourIdx) => {
-              const x = padding + 120 + hourIdx * cellWidth
-              const y = padding + dayIdx * cellHeight
+              const x = padding + dayLabelWidth + hourIdx * cellWidth
+              const y = padding + hourLabelHeight + dayIdx * cellHeight
               const isHovered = hoveredCell?.day === cell.day && hoveredCell?.hour === cell.hour
               const isWorst = isWorstCell(cell.day, cell.hour)
               
@@ -369,8 +378,8 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
           {hoveredCell && hoveredCell.data && (
             <g>
               <rect
-                x={padding + 120 + hoveredCell.hour * cellWidth - 70}
-                y={padding + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 55}
+                x={Math.max(padding, Math.min(baseWidth - 160, padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2 - 70))}
+                y={Math.max(padding + hourLabelHeight - 50, padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 55)}
                 width="140"
                 height="50"
                 fill="rgba(0,0,0,0.9)"
@@ -378,8 +387,8 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
                 style={{ pointerEvents: 'none' }}
               />
               <text
-                x={padding + 120 + hoveredCell.hour * cellWidth}
-                y={padding + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 35}
+                x={padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2}
+                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 25}
                 textAnchor="middle"
                 fontSize="11"
                 fontWeight="600"
@@ -389,8 +398,8 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
                 {hoveredCell.day} {hoveredCell.hour.toString().padStart(2, '0')}:00
               </text>
               <text
-                x={padding + 120 + hoveredCell.hour * cellWidth}
-                y={padding + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 20}
+                x={padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2}
+                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 10}
                 textAnchor="middle"
                 fontSize="10"
                 fill="#ffffff"
@@ -399,8 +408,8 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
                 {hoveredCell.data.avgHours}h avg (n={hoveredCell.data.uniqueDays} days)
               </text>
               <text
-                x={padding + 120 + hoveredCell.hour * cellWidth}
-                y={padding + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 5}
+                x={padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2}
+                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight + 5}
                 textAnchor="middle"
                 fontSize="10"
                 fill="#ffffff"
@@ -412,7 +421,7 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
           )}
 
           {/* Legend */}
-          <g transform={`translate(${padding + 120}, ${height - legendHeight + 20})`}>
+          <g transform={`translate(${padding + dayLabelWidth}, ${height - legendHeight + 20})`}>
             <text
               x={12 * cellWidth}
               y={0}

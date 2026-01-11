@@ -151,27 +151,10 @@ export default function Hours() {
   const [showAllEntries, setShowAllEntries] = useState(false)
   const [isPro, setIsPro] = useState(false)
   const [burnoutSectionCollapsed, setBurnoutSectionCollapsed] = useState(true)
-  const [clockedIn, setClockedIn] = useState(false)
-  const [clockInTime, setClockInTime] = useState(null)
-  const [partialEntry, setPartialEntry] = useState(null)
-  const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
     document.title = 'Burnout IQ - Working Hours'
   }, [])
-
-  // Real-time timer when clocked in
-  useEffect(() => {
-    let interval = null
-    if (clockedIn) {
-      interval = setInterval(() => {
-        setCurrentTime(new Date())
-      }, 1000)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [clockedIn])
 
   useEffect(() => {
     checkUserAndFetch()
@@ -502,135 +485,6 @@ export default function Hours() {
   }
 
   // ============================================================================
-  // CLOCK-IN/OUT FUNCTIONALITY
-  // ============================================================================
-  const handleClockIn = async () => {
-    if (clockedIn) {
-      setMessage('Error: Already clocked in. Please clock out first.')
-      return
-    }
-
-    if (!userId) {
-      setMessage('Error: User not found')
-      return
-    }
-
-    const today = new Date().toISOString().split('T')[0]
-    const now = new Date()
-    const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-
-    // Check if entry already exists for today
-    const { data: existingEntry } = await supabase
-      .from('Work_Logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('Date', today)
-      .single()
-
-    if (existingEntry && existingEntry['End Time']) {
-      const confirmed = window.confirm('An entry already exists for today. Do you want to overwrite it?')
-      if (!confirmed) return
-
-      await supabase
-        .from('Work_Logs')
-        .delete()
-        .eq('user_id', userId)
-        .eq('Date', today)
-    }
-
-    // Create or update partial entry
-    const { data, error } = await supabase
-      .from('Work_Logs')
-      .upsert([{
-        Date: today,
-        'Start Time': currentTimeStr,
-        'End Time': null,
-        adjustment: 0,
-        hours: 0,
-        user_id: userId
-      }], {
-        onConflict: 'user_id,Date'
-      })
-      .select()
-      .single()
-
-    if (error) {
-      setMessage(`Error: ${error.message}`)
-      console.error('Clock-in error:', error)
-    } else {
-      setClockedIn(true)
-      setClockInTime(currentTimeStr)
-      setPartialEntry(data)
-      setMessage('✓ Clocked in successfully')
-      setTimeout(() => setMessage(''), 3000)
-    }
-  }
-
-  const handleClockOut = async () => {
-    if (!clockedIn || !partialEntry) {
-      setMessage('Error: Not clocked in')
-      return
-    }
-
-    if (!userId) {
-      setMessage('Error: User not found')
-      return
-    }
-
-    const now = new Date()
-    const endTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    const startTimeStr = clockInTime || partialEntry['Start Time']
-    
-    if (!startTimeStr) {
-      setMessage('Error: Start time not found')
-      return
-    }
-
-    const totalHours = calculateHours(startTimeStr, endTimeStr, 0)
-
-    const { error } = await supabase
-      .from('Work_Logs')
-      .update({
-        'End Time': endTimeStr,
-        hours: totalHours
-      })
-      .eq('user_id', userId)
-      .eq('Date', partialEntry.Date)
-
-    if (error) {
-      setMessage(`Error: ${error.message}`)
-      console.error('Clock-out error:', error)
-    } else {
-      setClockedIn(false)
-      setClockInTime(null)
-      setPartialEntry(null)
-      setMessage('✓ Clocked out successfully')
-      checkUserAndFetch()
-      setTimeout(() => setMessage(''), 3000)
-    }
-  }
-
-  // Calculate elapsed time for timer display
-  const getElapsedTime = () => {
-    if (!clockedIn || !clockInTime) return '00:00:00'
-    
-    const now = currentTime
-    const [startHour, startMin] = clockInTime.split(':').map(Number)
-    const startDate = new Date(now)
-    startDate.setHours(startHour, startMin, 0, 0)
-    
-    // If clock in was yesterday, adjust
-    if (startDate > now) {
-      startDate.setDate(startDate.getDate() - 1)
-    }
-    
-    const diffMs = now - startDate
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-    const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000)
-    
-    return `${diffHours.toString().padStart(2, '0')}:${diffMinutes.toString().padStart(2, '0')}:${diffSeconds.toString().padStart(2, '0')}`
-  }
 
   const calculateL7DTotal = (targetDate, allLogs) => {
     const currentDate = new Date(targetDate)
@@ -1110,36 +964,18 @@ export default function Hours() {
   // BURNOUT RISK SCORE V2
   // ============================================================================
   const calculateBurnoutRiskScore = () => {
+    if (workLogs.length === 0) return null
+    
     try {
-      if (workLogs.length === 0) return null
-      
       const today = new Date()
       const sevenDaysAgo = new Date(today)
       sevenDaysAgo.setDate(today.getDate() - 7)
       const ninetyDaysAgo = new Date(today)
       ninetyDaysAgo.setDate(today.getDate() - 90)
       
-      // Check for extended break (>7 days <2h) → full reset
-      const longestBreak = findLongestRecentBreak()
-      if (longestBreak.days > 7) {
-        return {
-          riskScore: 0,
-          overallStatus: 'RECOVERED 🟢',
-          overallColor: '#34C759',
-          urgency: `🟢 Excellent: ${longestBreak.days}-day recovery break detected. Full system reset.`,
-          breakdown: {
-            intensity: 0,
-            workload: 0,
-            circadian: 0,
-            routine: 0
-          },
-          recoveryBonus: longestBreak.days
-        }
-      }
-      
-      // Calculate L7D and L90D
       const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
       
+      // Calculate L7D and L90D
       const all7Days = []
       for (let i = 0; i < 7; i++) {
         const date = new Date(today)
@@ -1170,56 +1006,85 @@ export default function Hours() {
       const l7dAvg = total7 / 7
       const l90dAvg = total90 / 90
       
-      // Calculate RecentIntensity with streak multiplier
-      const highStreak = calculateHighStreak()
-      const streakMult = highStreak.currentStreak >= 3 ? 1.5 : 1.0
-      const recentIntensity = l90dAvg > 0 ? (l7dAvg / l90dAvg) * streakMult : 1.0
+      // Find longest break (dashboard methodology - simpler inline calculation)
+      let longestBreak = 0
+      let currentBreak = 0
+      for (const date of all90Days.sort()) {
+        const hours = loggedDaysMap90[date] || 0
+        if (hours < 2) {
+          currentBreak++
+          longestBreak = Math.max(longestBreak, currentBreak)
+        } else {
+          currentBreak = 0
+        }
+      }
       
-      // Calculate components
+      // Extended break >7 days → full reset
+      if (longestBreak > 7) {
+        return {
+          riskScore: 0,
+          overallStatus: 'RECOVERED 🟢',
+          overallColor: '#34C759',
+          urgency: `🟢 Excellent: ${longestBreak}-day recovery break detected. Full system reset.`,
+          breakdown: {
+            intensity: 0,
+            workload: 0,
+            circadian: 0,
+            routine: 0,
+            l7d: (l7dAvg * 7).toFixed(1),
+            recentIntensity: '0.00',
+            streakMult: 1.0,
+            routineSD: '0.0'
+          },
+          recoveryBonus: longestBreak
+        }
+      }
+      
+      // Calculate score components (dashboard methodology - simplified)
+      const recentIntensity = l90dAvg > 0 ? (l7dAvg / l90dAvg) : 1.0
       const intensityComponent = Math.min(40, recentIntensity * 40)
-      const l7dTargetRatio = weeklyTarget > 0 ? (l7dAvg * 7) / weeklyTarget : 1.0
-      const workloadComponent = Math.min(20, l7dTargetRatio * 20)
       
-      // Red-eye weeks (weeks with >15% late-night work)
       const redEye = calculateRedEyeRatio()
       const redEyeVal = redEye ? parseFloat(redEye.ratio.replace('%', '')) : 0
-      const circadianComponent = redEyeVal > 15 ? 20 : (redEyeVal > 10 ? 15 : (redEyeVal > 5 ? 10 : 5))
+      const circadianComponent = redEyeVal > 15 ? 20 : (redEyeVal > 10 ? 15 : 10)
       
-      // Routine SD component
-      const routineSD = calculateRoutineSD()
-      const routineSDVal = parseFloat(routineSD.combinedSD || 0)
-      const routineComponent = routineSDVal > 2 ? 20 : (routineSDVal > 1 ? 15 : (routineSDVal > 0.5 ? 10 : 5))
+      const r4w = calculateRolling4WeekAverage()
+      const avgWeekly = r4w ? parseFloat(r4w.average) : 0
+      const workloadComponent = avgWeekly > 80 ? 20 : (avgWeekly > 60 ? 15 : 10)
       
-      // Holiday bonus (longest break >14 days → -50pts)
+      // Holiday bonus
       let holidayBonus = 0
-      if (longestBreak.days > 14) {
+      if (longestBreak > 14) {
         holidayBonus = -50
-      } else if (longestBreak.days > 7) {
+      } else if (longestBreak > 7) {
         holidayBonus = -25
       }
       
-      // Calculate score
-      let riskScore = intensityComponent + workloadComponent + circadianComponent + routineComponent + holidayBonus
+      let riskScore = intensityComponent + workloadComponent + circadianComponent + holidayBonus
       riskScore = Math.max(0, Math.min(100, riskScore))
       
       // Determine status and color
       let overallStatus = 'SUSTAINABLE'
       let overallColor = '#34C759'
       let urgency = ''
+      let recoveryCountdown = null
       
       if (riskScore >= 85) {
         overallStatus = 'CRITICAL 🔴'
         overallColor = '#FF3B30'
+        recoveryCountdown = 2
         const recoveryDate = new Date(today)
         recoveryDate.setDate(today.getDate() + 2)
         urgency = `🔴 CRITICAL: L7D ${l7dAvg.toFixed(1)}h/day. 48h recovery by ${recoveryDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}. ${'>'}80h/wk=2x errors (JAMA).`
       } else if (riskScore >= 60) {
         overallStatus = 'HIGH RISK 🟠'
         overallColor = '#FF9500'
+        recoveryCountdown = 7
         urgency = `🟠 ALERT: Multiple burnout indicators. Delay DD. Lock weekend. L7D ${(l7dAvg * 7).toFixed(1)}h/wk critical for PE finance.`
       } else if (riskScore >= 30) {
         overallStatus = 'ELEVATED 🟡'
         overallColor = '#FF9500'
+        recoveryCountdown = 14
         urgency = `🟡 CAUTION: Metrics elevated. Monitor closely. Plan recovery. Sleep debt=1.5x errors.`
       } else {
         overallStatus = 'SUSTAINABLE 🟢'
@@ -1227,25 +1092,39 @@ export default function Hours() {
         urgency = `🟢 GOOD: Metrics within healthy range. Maintain current rhythm.`
       }
       
+      // Calculate recovery days for breakdown
+      let recoveryDays = null
+      for (const log of completedLogs.sort((a, b) => new Date(b.Date) - new Date(a.Date))) {
+        const hours = parseFloat(log.hours || 0)
+        if (hours < 6) {
+          const logDate = new Date(log.Date)
+          const diffTime = today - logDate
+          recoveryDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+          break
+        }
+      }
+      
       return {
         riskScore: Math.round(riskScore),
         overallStatus,
         overallColor,
         urgency,
+        recoveryCountdown,
+        recoveryDays,
         breakdown: {
           intensity: intensityComponent.toFixed(1),
           workload: workloadComponent.toFixed(1),
           circadian: circadianComponent.toFixed(1),
-          routine: routineComponent.toFixed(1),
+          routine: '0.0', // No routine component in dashboard methodology
           l7d: (l7dAvg * 7).toFixed(1),
           recentIntensity: recentIntensity.toFixed(2),
-          streakMult,
-          routineSD: routineSDVal.toFixed(1)
+          streakMult: 1.0, // No streak multiplier in dashboard methodology
+          routineSD: '0.0'
         },
         recoveryBonus: holidayBonus
       }
     } catch (error) {
-      console.error('Error calculating burnout risk score v2:', error)
+      console.error('Error calculating burnout risk score:', error)
       return null
     }
   }
@@ -2127,97 +2006,6 @@ export default function Hours() {
             }}>
               {userProfile.position} · {userProfile.company} · {userProfile.region}
             </p>
-          )}
-        </div>
-
-        {/* Clock-In/Out Section */}
-        <div style={{ 
-          backgroundColor: 'white', 
-          padding: '40px', 
-          borderRadius: '16px',
-          marginBottom: '30px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-          border: clockedIn ? '3px solid #34C759' : '1px solid #e8e8ed'
-        }}>
-          <h2 style={{ 
-            fontSize: '28px',
-            fontWeight: '600',
-            margin: '0 0 24px 0',
-            color: '#1d1d1f'
-          }}>
-            {clockedIn ? '⏰ Currently Clocked In' : '⏱️ Quick Clock-In'}
-          </h2>
-          
-          {clockedIn ? (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{
-                fontSize: '72px',
-                fontWeight: '700',
-                color: '#34C759',
-                marginBottom: '16px',
-                fontFamily: 'monospace',
-                letterSpacing: '4px'
-              }}>
-                {getElapsedTime()}
-              </div>
-              <p style={{
-                fontSize: '16px',
-                color: '#6e6e73',
-                marginBottom: '24px'
-              }}>
-                Started at {clockInTime} today
-              </p>
-              <button
-                onClick={handleClockOut}
-                style={{
-                  padding: '18px 48px',
-                  backgroundColor: '#FF3B30',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontWeight: '700',
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  transition: 'background-color 0.2s',
-                  boxShadow: '0 4px 12px rgba(255,59,48,0.3)'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FF2D20'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF3B30'}
-              >
-                🛑 End Work Day
-              </button>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{
-                fontSize: '17px',
-                color: '#6e6e73',
-                marginBottom: '24px'
-              }}>
-                Quick way to track your work day. Click below to start.
-              </p>
-              <button
-                onClick={handleClockIn}
-                style={{
-                  padding: '18px 48px',
-                  backgroundColor: '#34C759',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontWeight: '700',
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  transition: 'background-color 0.2s',
-                  boxShadow: '0 4px 12px rgba(52,199,89,0.3)'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#30D158'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#34C759'}
-              >
-                ▶️ Start Work Day
-              </button>
-            </div>
           )}
         </div>
 
