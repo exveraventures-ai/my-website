@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import { useIsMobile } from '../lib/useMediaQuery'
 
 export default function Landing() {
   const router = useRouter()
   const [userProfile, setUserProfile] = useState(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     checkAuth()
@@ -43,48 +46,221 @@ export default function Landing() {
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
         zIndex: 1000,
-        padding: '20px 40px'
+        padding: isMobile ? '16px 20px' : '20px 40px'
       }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
+          <div style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: '700', color: '#fff' }}>
             Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
           </div>
-          <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
-            <a href="#features" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Features</a>
-            <a href="#preview" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Preview</a>
-            <a href="#pricing" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Pricing</a>
-            {isAuthenticated ? (
-              <>
-                <a href="/dashboard" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Dashboard</a>
-                <a href="/hours" style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#4F46E5',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '20px',
-                  fontSize: '15px',
-                  fontWeight: '600'
-                }}>
-                  Track Hours
-                </a>
-              </>
-            ) : (
-              <>
-                <a href="/login" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Sign In</a>
-                <a href="/request-access" style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#4F46E5',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '20px',
-                  fontSize: '15px',
-                  fontWeight: '600'
-                }}>
-                  Request Access
-                </a>
-              </>
-            )}
-          </div>
+          
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+              <a href="#features" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Features</a>
+              <a href="#preview" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Preview</a>
+              <a href="#pricing" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Pricing</a>
+              {isAuthenticated ? (
+                <>
+                  <a href="/dashboard" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Dashboard</a>
+                  <a href="/hours" style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#4F46E5',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '20px',
+                    fontSize: '15px',
+                    fontWeight: '600'
+                  }}>
+                    Track Hours
+                  </a>
+                </>
+              ) : (
+                <>
+                  <a href="/login" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Sign In</a>
+                  <a href="/request-access" style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#4F46E5',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '20px',
+                    fontSize: '15px',
+                    fontWeight: '600'
+                  }}>
+                    Request Access
+                  </a>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Mobile Hamburger Menu */}
+          {isMobile && (
+            <>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                style={{
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '44px',
+                  minHeight: '44px'
+                }}
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? '✕' : '☰'}
+              </button>
+              
+              {/* Mobile Menu Dropdown */}
+              {mobileMenuOpen && (
+                <>
+                  <div
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      zIndex: 999
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    backgroundColor: 'rgba(0,0,0,0.95)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    minWidth: '200px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    zIndex: 1000,
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}>
+                    <a
+                      href="#features"
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        display: 'block',
+                        color: 'rgba(255,255,255,0.8)',
+                        textDecoration: 'none',
+                        fontSize: '16px',
+                        padding: '12px 0',
+                        borderBottom: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      Features
+                    </a>
+                    <a
+                      href="#preview"
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        display: 'block',
+                        color: 'rgba(255,255,255,0.8)',
+                        textDecoration: 'none',
+                        fontSize: '16px',
+                        padding: '12px 0',
+                        borderBottom: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      Preview
+                    </a>
+                    <a
+                      href="#pricing"
+                      onClick={() => setMobileMenuOpen(false)}
+                      style={{
+                        display: 'block',
+                        color: 'rgba(255,255,255,0.8)',
+                        textDecoration: 'none',
+                        fontSize: '16px',
+                        padding: '12px 0',
+                        borderBottom: '1px solid rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      Pricing
+                    </a>
+                    {isAuthenticated ? (
+                      <>
+                        <a
+                          href="/dashboard"
+                          onClick={() => setMobileMenuOpen(false)}
+                          style={{
+                            display: 'block',
+                            color: 'rgba(255,255,255,0.8)',
+                            textDecoration: 'none',
+                            fontSize: '16px',
+                            padding: '12px 0',
+                            borderBottom: '1px solid rgba(255,255,255,0.1)'
+                          }}
+                        >
+                          Dashboard
+                        </a>
+                        <a
+                          href="/hours"
+                          onClick={() => setMobileMenuOpen(false)}
+                          style={{
+                            display: 'block',
+                            backgroundColor: '#4F46E5',
+                            color: 'white',
+                            textDecoration: 'none',
+                            fontSize: '16px',
+                            padding: '12px 16px',
+                            borderRadius: '8px',
+                            textAlign: 'center',
+                            marginTop: '12px',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Track Hours
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        <a
+                          href="/login"
+                          onClick={() => setMobileMenuOpen(false)}
+                          style={{
+                            display: 'block',
+                            color: 'rgba(255,255,255,0.8)',
+                            textDecoration: 'none',
+                            fontSize: '16px',
+                            padding: '12px 0',
+                            borderBottom: '1px solid rgba(255,255,255,0.1)'
+                          }}
+                        >
+                          Sign In
+                        </a>
+                        <a
+                          href="/request-access"
+                          onClick={() => setMobileMenuOpen(false)}
+                          style={{
+                            display: 'block',
+                            backgroundColor: '#4F46E5',
+                            color: 'white',
+                            textDecoration: 'none',
+                            fontSize: '16px',
+                            padding: '12px 16px',
+                            borderRadius: '8px',
+                            textAlign: 'center',
+                            marginTop: '12px',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Request Access
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       </nav>
 
@@ -95,11 +271,11 @@ export default function Landing() {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'linear-gradient(135deg, #4F46E5 0%, #1a1a2e 50%, #06B6D4 100%)',
-        padding: '100px 40px 60px'
+        padding: isMobile ? '80px 20px 40px' : '100px 40px 60px'
       }}>
-        <div style={{ maxWidth: '1000px', textAlign: 'center' }}>
+        <div style={{ maxWidth: '1000px', textAlign: 'center', padding: isMobile ? '0 10px' : '0' }}>
           <h1 style={{
-            fontSize: '72px',
+            fontSize: isMobile ? '36px' : '72px',
             fontWeight: '700',
             color: '#fff',
             margin: '0 0 24px 0',
@@ -109,14 +285,14 @@ export default function Landing() {
             Balance Your Hours.<br/>Track Your Health.
           </h1>
           <p style={{
-            fontSize: '24px',
+            fontSize: isMobile ? '18px' : '24px',
             color: 'rgba(255,255,255,0.7)',
             margin: '0 0 40px 0',
             lineHeight: 1.6
           }}>
             Built for high-intensity professionals. Monitor work intensity, compare with peers, and maintain sustainable performance across banking, PE, consulting, tech, and more.
           </p>
-          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '20px', justifyContent: 'center', alignItems: 'stretch' }}>
             {isAuthenticated ? (
               <>
                 <a href="/hours" style={{

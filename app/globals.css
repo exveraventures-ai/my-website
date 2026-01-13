@@ -12,6 +12,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: #f3f4f6; /* light gray background */
   color: #0f172a; /* slate-900 text for contrast on light bg */
+  overflow-x: hidden; /* Prevent horizontal scroll on mobile */
 }
 
 @layer utilities {
@@ -20,3 +21,16 @@ body {
   }
 }
 
+/* Mobile responsive utilities */
+@media (max-width: 767px) {
+  /* Prevent text size adjustment on iOS */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Improve touch targets on mobile */
+  button, a, input, select, textarea {
+    min-height: 44px; /* iOS recommended minimum touch target */
+  }
+}

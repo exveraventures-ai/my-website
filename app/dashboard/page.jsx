@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Footer from '../components/Footer'
+import { useIsMobile } from '../lib/useMediaQuery'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -14,6 +15,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [cohortStats, setCohortStats] = useState(null)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [methodologySectionCollapsed, setMethodologySectionCollapsed] = useState(true)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     document.title = 'Burnout IQ - Dashboard'
@@ -789,7 +792,7 @@ export default function Dashboard() {
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
-          padding: '16px 40px',
+          padding: isMobile ? '12px 20px' : '16px 40px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -797,7 +800,7 @@ export default function Dashboard() {
           flexWrap: 'wrap'
         }}>
           <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={{
-            fontSize: '20px',
+            fontSize: isMobile ? '18px' : '20px',
             fontWeight: '700',
             color: '#1d1d1f',
             textDecoration: 'none',
@@ -806,11 +809,26 @@ export default function Dashboard() {
             Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
           </a>
           
-          <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {!isMobile && (
+            <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap' }}>
             <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#007AFF'}}>Dashboard</a>
             <a href="/hours" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Working Hours</a>
             <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
             <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
+            <a href="#methodology" onClick={() => {
+              setShowProfileMenu(false)
+              setTimeout(() => {
+                const element = document.getElementById('methodology')
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  setMethodologySectionCollapsed(false)
+                }
+              }, 100)
+            }} style={navLinkStyle}>Methodology</a>
+          </div>
+          )}
+          
+          {!isMobile && (
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -954,14 +972,14 @@ export default function Dashboard() {
                 </>
               )}
             </div>
-          </div>
+          )}
         </div>
       </nav>
 
       <div style={{ 
         maxWidth: '1400px', 
         margin: '0 auto',
-        padding: '60px 40px'
+        padding: isMobile ? '20px 16px' : '60px 40px'
       }}>
         {/* Hero Header */}
         <div style={{ 
@@ -974,7 +992,7 @@ export default function Dashboard() {
         }}>
           <div style={{ flex: 1 }}>
             <h1 style={{ 
-              fontSize: '64px',
+              fontSize: isMobile ? '32px' : '64px',
               fontWeight: '700',
               margin: '0 0 16px 0',
               color: '#1d1d1f',
@@ -983,7 +1001,7 @@ export default function Dashboard() {
               Dashboard
             </h1>
             <p style={{ 
-              fontSize: '24px',
+              fontSize: isMobile ? '18px' : '24px',
               color: '#6e6e73',
               fontWeight: '400',
               margin: '0 0 8px 0',
@@ -1041,9 +1059,9 @@ export default function Dashboard() {
         {metrics && (
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
             gap: '20px',
-            marginBottom: '50px'
+            marginBottom: isMobile ? '30px' : '50px'
           }}>
             {/* Position 1: L7D Total (Col 1, Row 1) */}
             <QuickStatCard 
@@ -1273,6 +1291,165 @@ export default function Dashboard() {
             </a>
           </div>
         )}
+
+        {/* METHODOLOGY SECTION */}
+        <div id="methodology" style={{ 
+          marginBottom: '50px',
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '24px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+          border: '1px solid #e8e8ed'
+        }}>
+          {/* Header with Collapse Button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: methodologySectionCollapsed ? '0' : '24px' }}>
+            <h2 style={{
+              fontSize: isMobile ? '24px' : '28px',
+              fontWeight: '600',
+              margin: '0',
+              color: '#1d1d1f'
+            }}>
+              How Burnout Metrics Work
+            </h2>
+            <button
+              onClick={() => setMethodologySectionCollapsed(!methodologySectionCollapsed)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '20px',
+                color: '#6e6e73',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'transform 0.2s, color 0.2s',
+                borderRadius: '8px',
+                minWidth: '44px',
+                minHeight: '44px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#1d1d1f'
+                e.currentTarget.style.backgroundColor = '#f5f5f7'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#6e6e73'
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              {methodologySectionCollapsed ? '▼' : '▲'}
+            </button>
+          </div>
+          
+          {!methodologySectionCollapsed && (
+            <div style={{ paddingTop: '8px' }}>
+              {/* Overview */}
+              <p style={{
+                fontSize: '16px',
+                color: '#1d1d1f',
+                lineHeight: '1.6',
+                marginBottom: '24px',
+                padding: '16px',
+                backgroundColor: '#f5f5f7',
+                borderRadius: '8px'
+              }}>
+                The Burnout Risk Score combines three daily-tracked metrics using your completed work logs (entries with start and end times); unlogged days count as zero hours.
+              </p>
+
+              {/* Metrics List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* 1. Rolling Four-Week Average */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>1.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Rolling Four-Week Average
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        The average weekly working hours calculated by summing all hours over the last 28 days (unlogged days are zero) and dividing by four.
+                      </div>
+                      {rolling4Week && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your 4-week avg: {rolling4Week.average}h/week → {rolling4Week.status}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Red-Eye Ratio */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>2.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Red-Eye Ratio
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        The percentage of total hours spent working between 10 PM and 6 AM over the last 30 days, handling overnight shifts by wrapping around midnight.
+                      </div>
+                      {redEye && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your red-eye ratio: {redEye.ratio}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Burnout Risk Score */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>3.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Burnout Risk Score
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        A 0-100 score adding components from recent intensity (last seven days versus 90 days average ratio), four-week workload, and red-eye circadian disruption, minus bonuses for long recovery breaks.
+                      </div>
+                      {burnoutRisk && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your score: {burnoutRisk.riskScore}/100 ({burnoutRisk.overallStatus})
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                marginTop: '24px',
+                padding: '16px',
+                backgroundColor: '#f5f5f7',
+                borderRadius: '8px',
+                borderTop: '2px solid #e8e8ed',
+                fontSize: '14px',
+                color: '#6e6e73',
+                lineHeight: '1.5'
+              }}>
+                All metrics recalculate live from your logs. Questions? Edit logs below.
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Working Hours Chart - Full Width */}
         <div style={{ marginBottom: '50px' }}>

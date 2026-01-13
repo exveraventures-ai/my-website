@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Footer from '../components/Footer'
 import HeatMap from '../components/HeatMap'
+import { useIsMobile } from '../lib/useMediaQuery'
 
 // ============================================================================
 // STYLE DEFINITIONS - MUST BE BEFORE COMPONENT
@@ -151,6 +152,10 @@ export default function Hours() {
   const [showAllEntries, setShowAllEntries] = useState(false)
   const [isPro, setIsPro] = useState(false)
   const [burnoutSectionCollapsed, setBurnoutSectionCollapsed] = useState(true)
+  const [methodologySectionCollapsed, setMethodologySectionCollapsed] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [selectedEntries, setSelectedEntries] = useState(new Set())
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     document.title = 'Burnout IQ - Working Hours'
@@ -469,6 +474,59 @@ export default function Hours() {
       setMessage('✓ Deleted successfully')
       checkUserAndFetch()
       setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedEntries.size === 0) return
+    
+    const count = selectedEntries.size
+    if (!window.confirm(`Are you sure you want to delete ${count} ${count === 1 ? 'entry' : 'entries'}?`)) return
+
+    // Delete each selected entry
+    const deletePromises = Array.from(selectedEntries).map(entryKey => {
+      const [userId, date] = entryKey.split('|')
+      return supabase
+        .from('Work_Logs')
+        .delete()
+        .eq('user_id', userId)
+        .eq('Date', date)
+    })
+
+    const results = await Promise.all(deletePromises)
+    const errors = results.filter(r => r.error)
+
+    if (errors.length > 0) {
+      setMessage(`Error deleting some entries: ${errors[0].error.message}`)
+    } else {
+      setMessage(`✓ Deleted ${count} ${count === 1 ? 'entry' : 'entries'} successfully`)
+      setSelectedEntries(new Set())
+      checkUserAndFetch()
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const toggleEntrySelection = (user_id, date) => {
+    const entryKey = `${user_id}|${date}`
+    setSelectedEntries(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(entryKey)) {
+        newSet.delete(entryKey)
+      } else {
+        newSet.add(entryKey)
+      }
+      return newSet
+    })
+  }
+
+  const toggleSelectAll = (logsToShow) => {
+    if (selectedEntries.size === logsToShow.length) {
+      // Deselect all
+      setSelectedEntries(new Set())
+    } else {
+      // Select all visible
+      const allKeys = new Set(logsToShow.map(log => `${log.user_id}|${log.Date}`))
+      setSelectedEntries(allKeys)
     }
   }
 
@@ -1797,14 +1855,15 @@ export default function Hours() {
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
-          padding: '16px 40px',
+          padding: isMobile ? '12px 20px' : '16px 40px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '30px'
+          gap: '30px',
+          position: 'relative'
         }}>
-          <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={{
-            fontSize: '20px',
+          <a href="/dashboard" onClick={() => { setShowProfileMenu(false); setMobileMenuOpen(false) }} style={{
+            fontSize: isMobile ? '18px' : '20px',
             fontWeight: '700',
             color: '#1d1d1f',
             textDecoration: 'none',
@@ -1813,12 +1872,142 @@ export default function Hours() {
             Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
           </a>
 
-          <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
-            <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Dashboard</a>
-            <a href="/hours" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#4F46E5'}}>Working Hours</a>
-            <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
-            <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
+          {!isMobile && (
+            <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+              <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Dashboard</a>
+              <a href="/hours" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#4F46E5'}}>Working Hours</a>
+              <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
+              <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
+              <a href="#methodology" onClick={() => {
+                setShowProfileMenu(false)
+                setTimeout(() => {
+                  const element = document.getElementById('methodology')
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    setMethodologySectionCollapsed(false)
+                  }
+                }, 100)
+              }} style={navLinkStyle}>Methodology</a>
+            </div>
+          )}
 
+          {isMobile && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#1d1d1f',
+                fontSize: '24px',
+                cursor: 'pointer',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '44px',
+                minHeight: '44px'
+              }}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
+          )}
+
+          {isMobile && mobileMenuOpen && (
+            <>
+              <div
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.3)',
+                  zIndex: 998
+                }}
+              />
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: '20px',
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                minWidth: '200px',
+                overflow: 'hidden',
+                zIndex: 999,
+                border: '1px solid #e8e8ed'
+              }}>
+                <a href="/dashboard" onClick={() => { setShowProfileMenu(false); setMobileMenuOpen(false) }} style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  color: '#1d1d1f',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  borderBottom: '1px solid #e8e8ed'
+                }}>
+                  Dashboard
+                </a>
+                <a href="/hours" onClick={() => { setShowProfileMenu(false); setMobileMenuOpen(false) }} style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  color: '#4F46E5',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  borderBottom: '1px solid #e8e8ed'
+                }}>
+                  Working Hours
+                </a>
+                <a href="/health" onClick={() => { setShowProfileMenu(false); setMobileMenuOpen(false) }} style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  color: '#1d1d1f',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  borderBottom: '1px solid #e8e8ed'
+                }}>
+                  Health Stats
+                </a>
+                <a href="/compare" onClick={() => { setShowProfileMenu(false); setMobileMenuOpen(false) }} style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  color: '#1d1d1f',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  borderBottom: '1px solid #e8e8ed'
+                }}>
+                  Comparisons
+                </a>
+                <a href="#methodology" onClick={() => {
+                  setShowProfileMenu(false)
+                  setMobileMenuOpen(false)
+                  setTimeout(() => {
+                    const element = document.getElementById('methodology')
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      setMethodologySectionCollapsed(false)
+                    }
+                  }, 100)
+                }} style={{
+                  display: 'block',
+                  padding: '14px 16px',
+                  color: '#1d1d1f',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  fontWeight: '500'
+                }}>
+                  Methodology
+                </a>
+              </div>
+            </>
+          )}
+
+          {!isMobile && (
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -1958,22 +2147,22 @@ export default function Hours() {
                 </>
               )}
             </div>
-          </div>
+          )}
         </div>
       </nav>
 
       <div style={{ 
         maxWidth: '1400px', 
         margin: '0 auto',
-        padding: '60px 40px'
+        padding: isMobile ? '20px 16px' : '60px 40px'
       }}>
         {/* Hero Header */}
         <div style={{ 
           textAlign: 'center',
-          marginBottom: '60px'
+          marginBottom: isMobile ? '30px' : '60px'
         }}>
           <h1 style={{ 
-            fontSize: '64px',
+            fontSize: isMobile ? '32px' : '64px',
             fontWeight: '700',
             margin: '0 0 16px 0',
             color: '#1d1d1f',
@@ -1982,7 +2171,7 @@ export default function Hours() {
             Working Hours
           </h1>
           <p style={{ 
-            fontSize: '24px',
+            fontSize: isMobile ? '18px' : '24px',
             color: '#6e6e73',
             fontWeight: '400',
             margin: '0 0 8px 0',
@@ -2004,14 +2193,14 @@ export default function Hours() {
         {/* Log Hours Form */}
         <div style={{ 
           backgroundColor: 'white', 
-          padding: '40px', 
+          padding: isMobile ? '20px' : '40px', 
           borderRadius: '16px',
-          marginBottom: '50px',
+          marginBottom: isMobile ? '30px' : '50px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '16px' : '0', marginBottom: '30px' }}>
             <h2 style={{ 
-              fontSize: '28px',
+              fontSize: isMobile ? '24px' : '28px',
               fontWeight: '600',
               margin: 0,
               color: '#1d1d1f'
@@ -2039,7 +2228,9 @@ export default function Hours() {
                 transition: 'background-color 0.2s',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '8px',
+                width: isMobile ? '100%' : 'auto',
+                justifyContent: 'center'
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#5a5a5f'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#6e6e73'}
@@ -2047,8 +2238,8 @@ export default function Hours() {
               📝 View/Edit Entries
             </button>
           </div>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: '1 1 180px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', flexWrap: isMobile ? 'nowrap' : 'wrap', alignItems: isMobile ? 'stretch' : 'flex-end' }}>
+            <div style={{ flex: isMobile ? 'none' : '1 1 180px', width: isMobile ? '100%' : 'auto' }}>
               <label style={labelStyle}>Date</label>
               <input
                 type="date"
@@ -2059,7 +2250,7 @@ export default function Hours() {
               />
             </div>
 
-            <div style={{ flex: '1 1 140px' }}>
+            <div style={{ flex: isMobile ? 'none' : '1 1 140px', width: isMobile ? '100%' : 'auto' }}>
               <label style={labelStyle}>Start Time</label>
               <input
                 type="time"
@@ -2071,7 +2262,7 @@ export default function Hours() {
               />
             </div>
 
-            <div style={{ flex: '1 1 140px' }}>
+            <div style={{ flex: isMobile ? 'none' : '1 1 140px', width: isMobile ? '100%' : 'auto' }}>
               <label style={labelStyle}>End Time</label>
               <input
                 type="time"
@@ -2083,7 +2274,7 @@ export default function Hours() {
               />
             </div>
 
-            <div style={{ flex: '1 1 140px' }}>
+            <div style={{ flex: isMobile ? 'none' : '1 1 140px', width: isMobile ? '100%' : 'auto' }}>
               <label style={labelStyle}>Adjustment (hrs)</label>
               <input
                 type="number"
@@ -2094,7 +2285,7 @@ export default function Hours() {
               />
             </div>
 
-            <button type="submit" style={buttonStyle}>
+            <button type="submit" style={{...buttonStyle, width: isMobile ? '100%' : buttonStyle.flex, flex: isMobile ? 'none' : buttonStyle.flex}}>
               Log Hours
             </button>
           </form>
@@ -2481,6 +2672,215 @@ export default function Hours() {
         </div>
         )}
 
+        {/* METHODOLOGY SECTION */}
+        <div id="methodology" style={{ 
+          marginBottom: '50px',
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '24px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+          border: '1px solid #e8e8ed'
+        }}>
+          {/* Header with Collapse Button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: methodologySectionCollapsed ? '0' : '24px' }}>
+            <h2 style={{
+              fontSize: isMobile ? '24px' : '28px',
+              fontWeight: '600',
+              margin: '0',
+              color: '#1d1d1f'
+            }}>
+              How Burnout Metrics Work
+            </h2>
+            <button
+              onClick={() => setMethodologySectionCollapsed(!methodologySectionCollapsed)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '20px',
+                color: '#6e6e73',
+                padding: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'transform 0.2s, color 0.2s',
+                borderRadius: '8px',
+                minWidth: '44px',
+                minHeight: '44px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#1d1d1f'
+                e.currentTarget.style.backgroundColor = '#f5f5f7'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#6e6e73'
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
+              {methodologySectionCollapsed ? '▼' : '▲'}
+            </button>
+          </div>
+          
+          {!methodologySectionCollapsed && (
+            <div style={{ paddingTop: '8px' }}>
+              {/* Overview */}
+              <p style={{
+                fontSize: '16px',
+                color: '#1d1d1f',
+                lineHeight: '1.6',
+                marginBottom: '24px',
+                padding: '16px',
+                backgroundColor: '#f5f5f7',
+                borderRadius: '8px'
+              }}>
+                The Burnout Risk Score combines four daily-tracked metrics using your completed work logs (entries with start and end times); unlogged days count as zero hours.
+              </p>
+
+              {/* Metrics List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* 1. Rolling Four-Week Average */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>1.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Rolling Four-Week Average
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        The average weekly working hours calculated by summing all hours over the last 28 days (unlogged days are zero) and dividing by four.
+                      </div>
+                      {r4w && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your 4-week avg: {r4w.average}h/week → {r4w.status}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Red-Eye Ratio */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>2.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Red-Eye Ratio
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        The percentage of total hours spent working between 10 PM and 6 AM over the last 30 days, handling overnight shifts by wrapping around midnight.
+                      </div>
+                      {redEye && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your red-eye ratio: {redEye.ratio}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Protected Weekends */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>3.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Protected Weekends
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        The percentage of weekend days (Saturday and Sunday) over the last 30 days with zero or 0.5 hours or less of work, plus the length of the longest recent break of consecutive days with two hours or less.
+                      </div>
+                      {weekends && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your protection: {weekends.protectionRate} ({weekends.protectedWeekendDays}/{weekends.totalWeekendDays} days protected)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Routine Stability */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>4.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Routine Stability
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        The standard deviation of your daily start and end times (converted to hours) over the last 30 days, measuring consistency.
+                      </div>
+                      {routineSD && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your routine SD: {routineSD.combinedSD}h ({parseFloat(routineSD.combinedSD) < 1 ? '🟢 Stable' : parseFloat(routineSD.combinedSD) > 2 ? '🔴 Variable' : '🟡 Moderate'})
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Burnout Risk Score */}
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#f9f9fb',
+                  borderRadius: '8px',
+                  border: '1px solid #e8e8ed'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>5.</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
+                        Burnout Risk Score
+                      </div>
+                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
+                        A 0-100 score adding components from recent intensity (last seven days versus 90 days average ratio), four-week workload, red-eye circadian disruption, and routine instability, minus bonuses for long recovery breaks.
+                      </div>
+                      {burnout && burnout.breakdown && (
+                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
+                          Your score: {burnout.riskScore}/100 ({burnout.overallStatus}) · Components: Intensity {burnout.breakdown.intensity}pts, Workload {burnout.breakdown.workload}pts, Circadian {burnout.breakdown.circadian}pts
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                marginTop: '24px',
+                padding: '16px',
+                backgroundColor: '#f5f5f7',
+                borderRadius: '8px',
+                borderTop: '2px solid #e8e8ed',
+                fontSize: '14px',
+                color: '#6e6e73',
+                lineHeight: '1.5'
+              }}>
+                All metrics recalculate live from your logs. Questions? Edit logs below.
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Time Period Selector */}
         <div style={{ marginBottom: '30px' }}>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -2725,20 +3125,47 @@ export default function Hours() {
         {/* Recent Entries Table */}
         <div id="recent-entries" style={{ 
           backgroundColor: 'white', 
-          padding: '40px', 
+          padding: isMobile ? '20px' : '40px', 
           borderRadius: '16px',
-          marginBottom: '50px',
+          marginBottom: isMobile ? '30px' : '50px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-          <h2 style={{ 
-            fontSize: '28px',
-            fontWeight: '600',
-              margin: 0,
-            color: '#1d1d1f'
-          }}>
-            Recent Entries
-          </h2>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '16px' : '0', marginBottom: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <h2 style={{ 
+                fontSize: isMobile ? '24px' : '28px',
+                fontWeight: '600',
+                margin: 0,
+                color: '#1d1d1f'
+              }}>
+                Recent Entries
+              </h2>
+              {selectedEntries.size > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#FF3B30',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'background-color 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FF2D20'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF3B30'}
+                >
+                  🗑️ Delete Selected ({selectedEntries.size})
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             {!showAllEntries && workLogs.length > 0 && (() => {
               const today = new Date()
               const sevenDaysAgo = new Date(today)
@@ -2794,6 +3221,7 @@ export default function Hours() {
                 Show Less
               </button>
             )}
+            </div>
           </div>
           <div style={{ 
             overflowX: 'auto',
@@ -2803,6 +3231,35 @@ export default function Hours() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ position: showAllEntries ? 'sticky' : 'static', top: 0, backgroundColor: 'white', zIndex: 10 }}>
                 <tr style={{ borderBottom: '2px solid #e8e8ed' }}>
+                  <th style={{...tableHeaderStyle, width: '50px', padding: '16px 8px'}}>
+                    {(() => {
+                      let logsToShow = workLogs
+                      if (!showAllEntries) {
+                        const today = new Date()
+                        const sevenDaysAgo = new Date(today)
+                        sevenDaysAgo.setDate(today.getDate() - 7)
+                        sevenDaysAgo.setHours(0, 0, 0, 0)
+                        logsToShow = workLogs.filter(log => {
+                          const logDate = new Date(log.Date)
+                          logDate.setHours(0, 0, 0, 0)
+                          return logDate >= sevenDaysAgo
+                        })
+                      }
+                      const allSelected = logsToShow.length > 0 && logsToShow.every(log => selectedEntries.has(`${log.user_id}|${log.Date}`))
+                      return (
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={() => toggleSelectAll(logsToShow)}
+                          style={{
+                            cursor: 'pointer',
+                            width: '18px',
+                            height: '18px'
+                          }}
+                        />
+                      )
+                    })()}
+                  </th>
                   <th style={tableHeaderStyle}>Date</th>
                   <th style={tableHeaderStyle}>Start Time</th>
                   <th style={tableHeaderStyle}>End Time</th>
@@ -2828,10 +3285,14 @@ export default function Hours() {
                     })
                   }
                   
-                  return logsToShow.map((log) => (
-                  <tr key={`${log.user_id}-${log.Date}`} style={{ borderBottom: '1px solid #f5f5f7' }}>
+                  return logsToShow.map((log) => {
+                    const entryKey = `${log.user_id}|${log.Date}`
+                    const isSelected = selectedEntries.has(entryKey)
+                    return (
+                  <tr key={`${log.user_id}-${log.Date}`} style={{ borderBottom: '1px solid #f5f5f7', backgroundColor: isSelected ? '#f0f4ff' : 'transparent' }}>
                     {editingLog && editingLog.user_id === log.user_id && editingLog.date === log.Date ? (
                       <>
+                        <td style={tableCellStyle}></td>
                         <td style={tableCellStyle}>
                           <input
                             type="date"
@@ -2882,6 +3343,18 @@ export default function Hours() {
                     ) : (
                       <>
                         <td style={tableCellStyle}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleEntrySelection(log.user_id, log.Date)}
+                            style={{
+                              cursor: 'pointer',
+                              width: '18px',
+                              height: '18px'
+                            }}
+                          />
+                        </td>
+                        <td style={tableCellStyle}>
                           {new Date(log.Date).toLocaleDateString('en-GB', { 
                             day: '2-digit', 
                             month: 'short', 
@@ -2903,7 +3376,8 @@ export default function Hours() {
                       </>
                     )}
                   </tr>
-                  ))
+                  )
+                  })
                 })()}
               </tbody>
             </table>
