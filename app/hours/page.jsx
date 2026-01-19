@@ -1164,24 +1164,45 @@ export default function Hours() {
     if (workLogs.length === 0) return null
 
     const today = new Date()
+    
+    // Find the first log date to determine actual logging period
+    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    if (completedLogs.length === 0) return null
+    
+    const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
+    const firstLogDate = new Date(sortedLogs[0].Date)
+    
+    // Calculate actual days since first log
+    const daysSinceFirstLog = Math.floor((today - firstLogDate) / (1000 * 60 * 60 * 24)) + 1
+    
+    // Determine periods: use actual days if less than target period
+    const days7 = Math.min(7, daysSinceFirstLog)
+    const days90 = Math.min(90, daysSinceFirstLog)
+    
     const sevenDaysAgo = new Date(today)
-    sevenDaysAgo.setDate(today.getDate() - 7)
+    sevenDaysAgo.setDate(today.getDate() - (days7 - 1))
     const ninetyDaysAgo = new Date(today)
-    ninetyDaysAgo.setDate(today.getDate() - 90)
+    ninetyDaysAgo.setDate(today.getDate() - (days90 - 1))
 
-    // Generate arrays of all days in periods
+    // Generate arrays of all days in periods (only from first log date onwards)
     const all7Days = []
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < days7; i++) {
       const date = new Date(today)
       date.setDate(today.getDate() - i)
-      all7Days.push(date.toISOString().split('T')[0])
+      const dateStr = date.toISOString().split('T')[0]
+      if (date >= firstLogDate) {
+        all7Days.push(dateStr)
+      }
     }
     
     const all90Days = []
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < days90; i++) {
       const date = new Date(today)
       date.setDate(today.getDate() - i)
-      all90Days.push(date.toISOString().split('T')[0])
+      const dateStr = date.toISOString().split('T')[0]
+      if (date >= firstLogDate) {
+        all90Days.push(dateStr)
+      }
     }
     
     // Create maps of logged days (only completed entries, missing days = 0)
@@ -1199,11 +1220,11 @@ export default function Hours() {
       }
     })
     
-    // Calculate averages: sum all days (missing = 0, partial = 0) / total days
+    // Calculate averages: sum all days (missing = 0, partial = 0) / actual days in period
     const total7 = all7Days.reduce((sum, date) => sum + (loggedDaysMap7[date] || 0), 0)
     const total90 = all90Days.reduce((sum, date) => sum + (loggedDaysMap90[date] || 0), 0)
-    const h7 = total7 / 7 // Always divide by 7
-    const h90 = total90 / 90 // Always divide by 90
+    const h7 = all7Days.length > 0 ? total7 / all7Days.length : 0
+    const h90 = all90Days.length > 0 ? total90 / all90Days.length : 0
 
     const intensityIndex = h90 > 0 ? ((h7 / h90) * 100).toFixed(1) : 0
 
@@ -2326,9 +2347,9 @@ export default function Hours() {
                 highlight
               />
               <MetricCard 
-                label="L7D Total" 
+                label="L7D Total vs. Historical Avg" 
                 value={metrics.l7dTotal !== 'n.m.' ? metrics.l7dTotal + ' hrs' : '0 hrs'}
-                sublabel="Last 7 days"
+                sublabel={metrics.allTimeAvgDaily && metrics.allTimeAvgDaily !== '0' ? `Baseline: ${(parseFloat(metrics.allTimeAvgDaily) * 7).toFixed(1)} hrs/week (${parseFloat(metrics.l7dTotal) > parseFloat(metrics.allTimeAvgDaily) * 7 ? '+' : ''}${(parseFloat(metrics.l7dTotal) - parseFloat(metrics.allTimeAvgDaily) * 7).toFixed(1)} hrs)` : 'Last 7 days'}
               />
               <MetricCard 
                 label="L7D Avg. vs. Average Working Day" 
@@ -2337,18 +2358,20 @@ export default function Hours() {
                 color={metrics.avgWorkingDay && parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) * 1.2 ? '#FF3B30' : metrics.avgWorkingDay && parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) ? '#FF9500' : '#34C759'}
                 highlight={metrics.avgWorkingDay && parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) * 1.2}
               />
+            {loadIntensityIndex && isPro && (
               <MetricCard 
-                label="Historical Avg" 
-                value={metrics.allTimeAvgDaily !== 'n.m.' ? metrics.allTimeAvgDaily + ' hrs' : '0 hrs'}
-                sublabel="All-time daily"
+                label="Load Intensity Index" 
+                value={loadIntensityIndex.intensityIndex}
+                sublabel={`${loadIntensityIndex.status} (L7D: ${loadIntensityIndex.h7}h, L90D: ${loadIntensityIndex.h90}h)`}
+                color={loadIntensityIndex.color}
+                highlight={parseFloat(loadIntensityIndex.intensityIndex) >= 130}
               />
+            )}
             {weeklyGoalPace && (
               <MetricCard 
                 label="Weekly Progress" 
                 value={weeklyGoalPace.workedSoFar + '/' + weeklyGoalPace.weeklyTarget + ' hrs'}
                 sublabel={`${weeklyGoalPace.paceStatus} (${weeklyGoalPace.delta > 0 ? '+' : ''}${weeklyGoalPace.delta} hrs)`}
-                color={weeklyGoalPace.paceColor}
-                highlight
               />
             )}
             {highStreak && isPro && (
