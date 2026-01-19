@@ -14,10 +14,12 @@ export default function Navigation({ userProfile: propUserProfile }) {
   const isMobile = useIsMobile()
 
   useEffect(() => {
-    if (!propUserProfile) {
+    if (propUserProfile) {
+      setUserProfile(propUserProfile)
+    } else {
       checkUser()
     }
-  }, [])
+  }, [propUserProfile])
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -220,29 +222,66 @@ export default function Navigation({ userProfile: propUserProfile }) {
                     padding: '12px 16px',
                     color: 'var(--foreground)',
                     textDecoration: 'none',
-                    fontSize: '14px',
-                    borderBottom: '1px solid var(--border)'
-                  }}>
-                    Profile Settings
+                    fontSize: '15px',
+                    fontFamily: 'inherit',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--muted)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    ⚙️ Edit Profile
                   </a>
-                  <button
-                    onClick={handleSignOut}
-                    style={{
-                      width: '100%',
+                  <a href="/settings" onClick={() => setShowProfileMenu(false)} style={{
+                    display: 'block',
+                    padding: '12px 16px',
+                    color: 'var(--foreground)',
+                    textDecoration: 'none',
+                    fontSize: '15px',
+                    fontFamily: 'inherit',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--muted)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    ⚙️ Settings
+                  </a>
+                  {userProfile?.is_admin && (
+                    <a href="/admin" onClick={() => setShowProfileMenu(false)} style={{
+                      display: 'block',
                       padding: '12px 16px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      color: 'var(--destructive)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontFamily: 'inherit'
+                      color: 'var(--foreground)',
+                      textDecoration: 'none',
+                      fontSize: '15px',
+                      fontFamily: 'inherit',
+                      transition: 'background-color 0.2s',
+                      borderTop: '1px solid var(--border)'
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--muted)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    🚪 Sign Out
-                  </button>
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                      👑 Admin Panel
+                    </a>
+                  )}
+                  <div style={{
+                    borderTop: '1px solid var(--border)'
+                  }}>
+                    <button
+                      onClick={handleSignOut}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'var(--destructive)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '15px',
+                        fontFamily: 'inherit',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--muted)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      🚪 Sign Out
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -309,8 +348,32 @@ export default function Navigation({ userProfile: propUserProfile }) {
                     fontWeight: '500',
                     borderBottom: '1px solid var(--border)'
                   }}>
-                    Profile Settings
+                    ⚙️ Edit Profile
                   </a>
+                  <a href="/settings" onClick={() => setMobileMenuOpen(false)} style={{
+                    display: 'block',
+                    padding: '14px 16px',
+                    color: 'var(--foreground)',
+                    textDecoration: 'none',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    borderBottom: '1px solid var(--border)'
+                  }}>
+                    ⚙️ Settings
+                  </a>
+                  {userProfile?.is_admin && (
+                    <a href="/admin" onClick={() => setMobileMenuOpen(false)} style={{
+                      display: 'block',
+                      padding: '14px 16px',
+                      color: 'var(--foreground)',
+                      textDecoration: 'none',
+                      fontSize: '15px',
+                      fontWeight: '500',
+                      borderBottom: '1px solid var(--border)'
+                    }}>
+                      👑 Admin Panel
+                    </a>
+                  )}
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false)

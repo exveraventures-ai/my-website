@@ -3,6 +3,7 @@
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { sendApprovalEmail, initializeEmailJS } from '../lib/emailService'
 
 export default function Admin() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function Admin() {
 
   useEffect(() => {
     document.title = 'Burnout IQ - Admin'
+    initializeEmailJS()
     checkAdminAndLoad()
   }, [])
 
@@ -182,48 +184,20 @@ export default function Admin() {
       }
 
       // Send approval email (Email 2: Your access has been approved)
-      try {
-        await sendApprovalEmail(requestData)
-      } catch (emailError) {
-        console.error('Failed to send approval email:', emailError)
-        // Don't fail the approval if email fails
+      const emailResult = await sendApprovalEmail(requestData)
+      if (!emailResult.success) {
+        console.error('Failed to send approval email:', emailResult.error)
+        // Don't fail the approval if email fails, but notify admin
       }
 
       // Reload requests
       loadAccessRequests()
       
-      alert(`Request approved! User profile created and approval email sent to ${requestData.email}`)
+      const emailStatus = emailResult.success ? 'Approval email sent' : 'Approval email failed (check console)'
+      alert(`Request approved! User profile created. ${emailStatus} to ${requestData.email}`)
     } catch (error) {
       console.error('Error approving request:', error)
       alert('Error approving request: ' + error.message)
-    }
-  }
-
-  // Email sending function for approval
-  const sendApprovalEmail = async (userData) => {
-    // This will be implemented with EmailJS or your email service
-    if (typeof window !== 'undefined' && window.emailjs) {
-      try {
-        await window.emailjs.send(
-          process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
-          process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_APPROVAL_ID || 'YOUR_TEMPLATE_APPROVAL_ID',
-          {
-            to_email: userData.email,
-            to_name: `${userData.first_name} ${userData.last_name}`,
-            user_name: `${userData.first_name} ${userData.last_name}`,
-            user_email: userData.email,
-            login_url: `${window.location.origin}/login`,
-          },
-          process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
-        )
-        console.log('Approval email sent successfully')
-      } catch (error) {
-        console.error('EmailJS error:', error)
-        throw error
-      }
-    } else {
-      // Option 2: Use a webhook
-      console.log('Email service not configured - skipping email')
     }
   }
 

@@ -242,12 +242,12 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
     )
   }
 
-  const cellWidth = 30
-  const cellHeight = 25
-  const padding = 12
-  const dayLabelWidth = 80
-  const legendHeight = 70
-  const hourLabelHeight = 20
+  const cellWidth = 45  // Increased from 30
+  const cellHeight = 40  // Increased from 25
+  const padding = 20
+  const dayLabelWidth = 100  // Increased for better label visibility
+  const legendHeight = 90  // Increased for better legend spacing
+  const hourLabelHeight = 30  // Increased for better hour labels
   const baseWidth = 24 * cellWidth + padding * 2 + dayLabelWidth
   const height = 7 * cellHeight + padding * 2 + legendHeight + hourLabelHeight
 
@@ -300,14 +300,20 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
         borderRadius: '12px',
         padding: '20px',
         overflowX: 'auto',
-        width: '100%'
+        width: '100%',
+        maxWidth: '100%'
       }}>
         <svg 
           width="100%" 
           height={height} 
           viewBox={`0 0 ${baseWidth} ${height}`}
-          preserveAspectRatio="xMidYMin meet"
-          style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', minWidth: `${baseWidth}px` }}
+          preserveAspectRatio="xMinYMin meet"
+          style={{ 
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', 
+            minWidth: `${baseWidth}px`,
+            maxWidth: '100%',
+            display: 'block'
+          }}
         >
           {/* Day labels */}
           {displayDayOrder.map((dayName, dayIdx) => {
@@ -315,13 +321,13 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
             return (
               <text
                 key={dayName}
-                x={padding + dayLabelWidth - 8}
+                x={padding + dayLabelWidth - 12}
                 y={y}
                 textAnchor="end"
                 dominantBaseline="middle"
-                fontSize="12"
-                fontWeight="500"
-                fill="#6e6e73"
+                fontSize="14"
+                fontWeight="600"
+                fill="#1d1d1f"
                 style={{ pointerEvents: 'none' }}
               >
                 {dayLabels[dayIdx]}
@@ -336,10 +342,11 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
               <text
                 key={hour}
                 x={x}
-                y={padding + hourLabelHeight - 8}
+                y={padding + hourLabelHeight - 10}
                 textAnchor="middle"
-                fontSize="10"
-                fill="#86868b"
+                fontSize="12"
+                fontWeight="500"
+                fill="#6e6e73"
                 style={{ pointerEvents: 'none' }}
               >
                 {hour.toString().padStart(2, '0')}
@@ -378,20 +385,20 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
           {hoveredCell && hoveredCell.data && (
             <g>
               <rect
-                x={Math.max(padding, Math.min(baseWidth - 160, padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2 - 70))}
-                y={Math.max(padding + hourLabelHeight - 50, padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 55)}
-                width="140"
-                height="50"
-                fill="rgba(0,0,0,0.9)"
-                rx="6"
+                x={Math.max(padding, Math.min(baseWidth - 180, padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2 - 90))}
+                y={Math.max(padding + hourLabelHeight - 60, padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 70)}
+                width="180"
+                height="65"
+                fill="rgba(0,0,0,0.92)"
+                rx="8"
                 style={{ pointerEvents: 'none' }}
               />
               <text
                 x={padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2}
-                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 25}
+                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 35}
                 textAnchor="middle"
-                fontSize="11"
-                fontWeight="600"
+                fontSize="13"
+                fontWeight="700"
                 fill="#ffffff"
                 style={{ pointerEvents: 'none' }}
               >
@@ -399,9 +406,9 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
               </text>
               <text
                 x={padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2}
-                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 10}
+                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight - 17}
                 textAnchor="middle"
-                fontSize="10"
+                fontSize="12"
                 fill="#ffffff"
                 style={{ pointerEvents: 'none' }}
               >
@@ -409,9 +416,9 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
               </text>
               <text
                 x={padding + dayLabelWidth + hoveredCell.hour * cellWidth + cellWidth / 2}
-                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight + 5}
+                y={padding + hourLabelHeight + displayDayOrder.indexOf(hoveredCell.day) * cellHeight + 0}
                 textAnchor="middle"
-                fontSize="10"
+                fontSize="11"
                 fill="#ffffff"
                 style={{ pointerEvents: 'none' }}
               >
@@ -421,13 +428,13 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
           )}
 
           {/* Legend */}
-          <g transform={`translate(${padding + dayLabelWidth}, ${height - legendHeight + 20})`}>
+          <g transform={`translate(${padding + dayLabelWidth}, ${height - legendHeight + 25})`}>
             <text
               x={12 * cellWidth}
               y={0}
               textAnchor="middle"
-              fontSize="12"
-              fontWeight="600"
+              fontSize="14"
+              fontWeight="700"
               fill="#1d1d1f"
               style={{ pointerEvents: 'none' }}
             >
@@ -441,24 +448,26 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
               { label: '9-12h', color: '#FF9500', hours: 10.5 },
               { label: '>12h', color: '#FF3B30', hours: 13.5 }
             ].map((item, idx) => {
-              const legendX = 8 * cellWidth + idx * 80
+              const legendX = 7 * cellWidth + idx * 100
               return (
                 <g key={idx}>
                   <rect
                     x={legendX}
-                    y={15}
-                    width={cellWidth - 2}
-                    height={cellHeight - 2}
+                    y={20}
+                    width={cellWidth}
+                    height={cellHeight - 5}
                     fill={item.color}
                     stroke="#ffffff"
-                    strokeWidth={1}
+                    strokeWidth={2}
+                    rx="4"
                     style={{ pointerEvents: 'none' }}
                   />
                   <text
-                    x={legendX + (cellWidth - 2) / 2}
-                    y={15 + cellHeight + 12}
+                    x={legendX + cellWidth / 2}
+                    y={20 + cellHeight + 10}
                     textAnchor="middle"
-                    fontSize="11"
+                    fontSize="13"
+                    fontWeight="600"
                     fill="#6e6e73"
                     style={{ pointerEvents: 'none' }}
                   >
@@ -470,24 +479,25 @@ export default function HeatMap({ workLogs, heatmapData: providedData, isPro = t
 
             {/* Top 5 worst indicator */}
             {worstCells.length > 0 && (
-              <g transform={`translate(${8 * cellWidth + 320}, 15)`}>
+              <g transform={`translate(${7 * cellWidth + 420}, 20)`}>
                 <rect
                   x={0}
                   y={0}
-                  width={cellWidth - 2}
-                  height={cellHeight - 2}
+                  width={cellWidth}
+                  height={cellHeight - 5}
                   fill="transparent"
                   stroke="#FF3B30"
-                  strokeWidth={2}
+                  strokeWidth={3}
+                  rx="4"
                   style={{ pointerEvents: 'none' }}
                 />
                 <text
-                  x={(cellWidth - 2) / 2}
-                  y={cellHeight + 12}
+                  x={cellWidth / 2}
+                  y={cellHeight + 10}
                   textAnchor="middle"
-                  fontSize="10"
+                  fontSize="12"
                   fill="#FF3B30"
-                  fontWeight="600"
+                  fontWeight="700"
                   style={{ pointerEvents: 'none' }}
                 >
                   Top 5

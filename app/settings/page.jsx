@@ -4,14 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Footer from '../components/Footer'
-
-const navLinkStyle = {
-  color: '#1d1d1f',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: '500',
-  transition: 'opacity 0.2s'
-}
+import Navigation from '../components/Navigation'
 
 const labelStyle = {
   fontSize: '13px', 
@@ -63,7 +56,6 @@ export default function Settings() {
   const router = useRouter()
   const [userId, setUserId] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
-  const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -140,11 +132,6 @@ export default function Settings() {
     setLoading(false)
   }
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    localStorage.removeItem('burnoutiQ_user_id')
-    router.push('/login')
-  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -201,186 +188,7 @@ export default function Settings() {
       backgroundColor: '#f5f5f7',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     }}>
-      {/* Navigation Banner */}
-      <nav style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(0,0,0,0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000
-      }}>
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '16px 40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '30px',
-          flexWrap: 'wrap'
-        }}>
-          <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={{
-            fontSize: '20px',
-            fontWeight: '700',
-            color: '#1d1d1f',
-            textDecoration: 'none',
-            letterSpacing: '-0.02em'
-          }}>
-            Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
-          </a>
-          
-          <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Dashboard</a>
-            <a href="/hours" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Working Hours</a>
-            <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
-            <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
-                  color: userProfile?.is_pro ? '#1d1d1f' : 'white',
-                  borderRadius: '20px',
-                  fontWeight: '600',
-                  fontSize: '15px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                Profile
-                {userProfile?.is_pro && <span style={{ fontSize: '12px', fontWeight: '700' }}>✨</span>}
-                <span style={{ fontSize: '10px' }}>▼</span>
-              </button>
-              
-              {showProfileMenu && (
-                <>
-                  <div
-                    onClick={() => setShowProfileMenu(false)}
-                    style={{
-                      position: 'fixed',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      zIndex: 999
-                    }}
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    backgroundColor: 'white',
-                    borderRadius: '12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                    zIndex: 1000,
-                    minWidth: '240px',
-                    overflow: 'hidden'
-                  }}>
-                    {userProfile && (
-                      <div style={{
-                        padding: '16px',
-                        borderBottom: '1px solid #e8e8ed'
-                      }}>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1d1d1f', marginBottom: '4px' }}>
-                          {userProfile.email}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#6e6e73' }}>
-                          {userProfile.position} · {userProfile.company}
-                        </div>
-                      </div>
-                    )}
-                    <a
-                      href="/profile"
-                      onClick={() => setShowProfileMenu(false)}
-                      style={{
-                        display: 'block',
-                        padding: '12px 16px',
-                        color: '#1d1d1f',
-                        textDecoration: 'none',
-                        fontSize: '15px',
-                        fontFamily: 'inherit',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      ⚙️ Edit Profile
-                    </a>
-                    <a
-                      href="/settings"
-                      onClick={() => setShowProfileMenu(false)}
-                      style={{
-                        display: 'block',
-                        padding: '12px 16px',
-                        color: '#1d1d1f',
-                        textDecoration: 'none',
-                        fontSize: '15px',
-                        fontFamily: 'inherit',
-                        transition: 'background-color 0.2s',
-                        backgroundColor: '#f5f5f7'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8e8ed'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                    >
-                      ⚙️ Settings
-                    </a>
-                    {userProfile?.is_admin && (
-                      <a
-                        href="/admin"
-                        onClick={() => setShowProfileMenu(false)}
-                        style={{
-                          display: 'block',
-                          padding: '12px 16px',
-                          color: '#1d1d1f',
-                          textDecoration: 'none',
-                          fontSize: '15px',
-                          fontFamily: 'inherit',
-                          transition: 'background-color 0.2s',
-                          borderTop: '1px solid #e8e8ed'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        👑 Admin Panel
-                      </a>
-                    )}
-                    <div style={{
-                      borderTop: '1px solid #e8e8ed'
-                    }}>
-                      <button
-                        onClick={handleSignOut}
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          backgroundColor: 'transparent',
-                          color: '#FF3B30',
-                          border: 'none',
-                          borderRadius: '0',
-                          fontWeight: '600',
-                          fontSize: '15px',
-                          cursor: 'pointer',
-                          fontFamily: 'inherit',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        🚪 Sign Out
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navigation userProfile={userProfile} />
 
       <div style={{ 
         maxWidth: '800px', 

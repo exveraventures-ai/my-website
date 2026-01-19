@@ -1,54 +1,10 @@
 "use client"
 
 import { supabase } from '../lib/supabase'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { firmCategories } from '../lib/firms'
-
-// Email sending function
-const sendAccessRequestConfirmationEmail = async (formData) => {
-  // This will be implemented with EmailJS or your email service
-  // For now, we'll use a simple fetch to a webhook or email service
-  
-  // Option 1: Use EmailJS (recommended - see setup guide)
-  if (typeof window !== 'undefined' && window.emailjs) {
-    try {
-      await window.emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_REQUEST_ID || 'YOUR_TEMPLATE_REQUEST_ID',
-        {
-          to_email: formData.email,
-          to_name: `${formData.first_name} ${formData.last_name}`,
-          user_name: `${formData.first_name} ${formData.last_name}`,
-          user_email: formData.email,
-          position: formData.position || 'N/A',
-          company: formData.company || 'N/A',
-          region: formData.region || 'N/A',
-        },
-        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
-      )
-    } catch (error) {
-      console.error('EmailJS error:', error)
-      throw error
-    }
-  } else {
-    // Option 2: Use a webhook (Zapier, Make.com, etc.)
-    // Uncomment and configure if using webhook:
-    /*
-    await fetch('YOUR_WEBHOOK_URL', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'access_request',
-        email: formData.email,
-        name: `${formData.first_name} ${formData.last_name}`,
-        ...formData
-      })
-    })
-    */
-    console.log('Email service not configured - skipping email')
-  }
-}
+import { sendAccessRequestEmail, sendAdminNotificationEmail, initializeEmailJS } from '../lib/emailService'
 
 export default function RequestAccess() {
   const router = useRouter()
@@ -63,6 +19,10 @@ export default function RequestAccess() {
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    initializeEmailJS()
+  }, [])
 
   const positions = [
     'Analyst',
@@ -131,13 +91,42 @@ export default function RequestAccess() {
         throw requestError
       }
 
-      // Send confirmation email (Email 1: Thank you for requesting access)
-      try {
-        await sendAccessRequestConfirmationEmail(formData)
-      } catch (emailError) {
-        console.error('Failed to send confirmation email:', emailError)
-        // Don't fail the request if email fails
-      }
+      // Get the created request with timestamp for admin email
+      const { data: createdRequest } = await supabase
+        .from('access_requests')
+        .select('*')
+        .eq('email', formData.email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      // Send emails in parallel (don't block on email failures)
+      const emailPromises = []
+      
+      // Email 1: User confirmation
+      emailPromises.push(
+        sendAccessRequestEmail({
+          ...formData,
+          created_at: createdRequest?.created_at
+        }).catch(err => {
+          console.error('Failed to send user confirmation email:', err)
+        })
+      )
+      
+      // Email 2: Admin notification
+      emailPromises.push(
+        sendAdminNotificationEmail(
+          createdRequest || formData,
+          process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'alex.f.nash@gmail.com'
+        ).catch(err => {
+          console.error('Failed to send admin notification email:', err)
+        })
+      )
+      
+      // Don't wait for emails - they're fire-and-forget
+      Promise.all(emailPromises).then(() => {
+        console.log('Email notifications sent')
+      })
 
       setMessage('✓ Access request submitted successfully! We\'ll review your request and send you login credentials once approved.')
       

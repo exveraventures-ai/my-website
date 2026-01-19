@@ -935,47 +935,6 @@ export default function Hours() {
     return { days: longestBreak, ended: breakEndDate }
   }
   
-  // Calculate routine SD (standard deviation of start/end times over L30D)
-  const calculateRoutineSD = () => {
-    if (workLogs.length === 0) return { startSD: 0, endSD: 0, combinedSD: 0 }
-    
-    const today = new Date()
-    const thirtyDaysAgo = new Date(today)
-    thirtyDaysAgo.setDate(today.getDate() - 30)
-    
-    const completedLogs = workLogs.filter(log => {
-      if (!log['Start Time'] || !log['End Time']) return false
-      const logDate = new Date(log.Date)
-      return logDate >= thirtyDaysAgo && logDate <= today
-    })
-    
-    if (completedLogs.length === 0) return { startSD: 0, endSD: 0, combinedSD: 0 }
-    
-    // Convert times to minutes
-    const startTimes = completedLogs.map(log => {
-      const [h, m] = log['Start Time'].split(':').map(Number)
-      return h * 60 + m
-    })
-    const endTimes = completedLogs.map(log => {
-      const [h, m] = log['End Time'].split(':').map(Number)
-      return h * 60 + m
-    })
-    
-    // Calculate mean
-    const startMean = startTimes.reduce((a, b) => a + b, 0) / startTimes.length
-    const endMean = endTimes.reduce((a, b) => a + b, 0) / endTimes.length
-    
-    // Calculate variance
-    const startVariance = startTimes.reduce((sum, t) => sum + Math.pow(t - startMean, 2), 0) / startTimes.length
-    const endVariance = endTimes.reduce((sum, t) => sum + Math.pow(t - endMean, 2), 0) / endTimes.length
-    
-    // Calculate SD (in hours)
-    const startSD = Math.sqrt(startVariance) / 60
-    const endSD = Math.sqrt(endVariance) / 60
-    const combinedSD = (startSD + endSD) / 2
-    
-    return { startSD: startSD.toFixed(1), endSD: endSD.toFixed(1), combinedSD: combinedSD.toFixed(1) }
-  }
   
   // Calculate high-streak days (consecutive >9h days)
   const calculateHighStreak = () => {
@@ -1103,11 +1062,9 @@ export default function Hours() {
             intensity: 0,
             workload: 0,
             circadian: 0,
-            routine: 0,
-            l7d: (l7dAvg * 7).toFixed(1),
-            recentIntensity: '0.00',
-            streakMult: 1.0,
-            routineSD: '0.0'
+          l7d: (l7dAvg * 7).toFixed(1),
+          recentIntensity: '0.00',
+          streakMult: 1.0
           },
           recoveryBonus: longestBreak
         }
@@ -1188,11 +1145,9 @@ export default function Hours() {
           intensity: intensityComponent.toFixed(1),
           workload: workloadComponent.toFixed(1),
           circadian: circadianComponent.toFixed(1),
-          routine: '0.0', // No routine component in dashboard methodology
           l7d: (l7dAvg * 7).toFixed(1),
           recentIntensity: recentIntensity.toFixed(2),
-          streakMult: 1.0, // No streak multiplier in dashboard methodology
-          routineSD: '0.0'
+          streakMult: 1.0
         },
         recoveryBonus: holidayBonus
       }
@@ -1411,6 +1366,7 @@ export default function Hours() {
         l7dTotal: '0',
         l7dAvgDaily: '0',
         allTimeAvgDaily: '0',
+        avgWorkingDay: '0',
         currentStreak: 0,
         l1m: '0',
         l3m: '0',
@@ -1448,11 +1404,36 @@ export default function Hours() {
     const l7dAvgDaily = (l7dTotal / 7).toFixed(1) // Always divide by 7 days
     const l7dAvgWeekly = l7dTotal.toFixed(1)
 
-    // For all-time average, calculate from first log date to today (missing days = 0)
+    // For all-time average, calculate only for weekdays (exclude weekends)
     let allTimeAvgDaily = '0'
+    let avgWorkingDay = '0'
     if (completedLogs.length > 0) {
       const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
       const firstDate = new Date(sortedLogs[0].Date)
+      
+      // Count all weekdays from first log to today
+      let weekdayCount = 0
+      let currentDate = new Date(firstDate)
+      while (currentDate <= today) {
+        const dayOfWeek = currentDate.getDay()
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+          weekdayCount++
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+      
+      // Calculate total hours only from weekday logs
+      const weekdayLogs = completedLogs.filter(log => {
+        const logDate = new Date(log.Date)
+        const dayOfWeek = logDate.getDay()
+        return dayOfWeek !== 0 && dayOfWeek !== 6
+      })
+      const totalWeekdayHours = weekdayLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
+      
+      // Average working day = total weekday hours / total weekdays (including days not logged)
+      avgWorkingDay = weekdayCount > 0 ? (totalWeekdayHours / weekdayCount).toFixed(1) : '0'
+      
+      // Keep old calculation for compatibility
       const daysSinceFirst = Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)) + 1
       const total = completedLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
       allTimeAvgDaily = (total / daysSinceFirst).toFixed(1)
@@ -1506,6 +1487,7 @@ export default function Hours() {
       l7dTotal: l7dAvgWeekly,
       l7dAvgDaily,
       allTimeAvgDaily,
+      avgWorkingDay,
       currentStreak,
       l1m: calculatePeriod(30),
       l3m: calculatePeriod(90),
@@ -1808,7 +1790,7 @@ export default function Hours() {
 
   // Call all calculation functions with error handling
   let metrics, weeklyStats, loadIntensityIndex, weeklyGoalPace, r4w, redEye, weekends, burnout, chartData, dayOfWeekData, loadIntensityData, weeklyProgressData
-  let routineSD, highStreak, recoveryDays
+  let highStreak, recoveryDays
   
   try {
     metrics = calculateAllMetrics()
@@ -1819,7 +1801,6 @@ export default function Hours() {
     redEye = calculateRedEyeRatio()
     weekends = calculateProtectedWeekends()
     burnout = calculateBurnoutRiskScore()
-    routineSD = calculateRoutineSD()
     highStreak = calculateHighStreak()
     recoveryDays = calculateRecoveryDays()
     chartData = getFilteredData()
@@ -1829,7 +1810,7 @@ export default function Hours() {
   } catch (error) {
     console.error('Error calculating metrics:', error)
     // Set defaults to prevent crashes
-    metrics = { l7dTotal: '0', l7dAvgDaily: '0', allTimeAvgDaily: '0', currentStreak: 0, l1m: '0', l3m: '0', l6m: '0', ytd: '0', ltm: '0' }
+    metrics = { l7dTotal: '0', l7dAvgDaily: '0', allTimeAvgDaily: '0', avgWorkingDay: '0', currentStreak: 0, l1m: '0', l3m: '0', l6m: '0', ytd: '0', ltm: '0' }
     weeklyStats = null
     loadIntensityIndex = null
     weeklyGoalPace = null
@@ -1837,7 +1818,6 @@ export default function Hours() {
     redEye = null
     weekends = null
     burnout = null
-    routineSD = null
     highStreak = null
     recoveryDays = null
     chartData = []
@@ -2177,7 +2157,6 @@ export default function Hours() {
                     <div>Intensity: {burnout.breakdown.intensity}pts</div>
                     <div>Workload: {burnout.breakdown.workload}pts</div>
                     <div>Circadian: {burnout.breakdown.circadian}pts</div>
-                    <div>Routine: {burnout.breakdown.routine}pts</div>
                   </div>
                   {burnout.recoveryBonus && burnout.recoveryBonus < 0 && (
                     <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>
@@ -2352,9 +2331,11 @@ export default function Hours() {
                 sublabel="Last 7 days"
               />
               <MetricCard 
-                label="L7D Daily Avg" 
+                label="L7D Avg. vs. Average Working Day" 
                 value={metrics.l7dAvgDaily !== 'n.m.' ? metrics.l7dAvgDaily + ' hrs' : '0 hrs'}
-                sublabel="Per day"
+                sublabel={metrics.avgWorkingDay && metrics.avgWorkingDay !== '0' ? `Baseline: ${metrics.avgWorkingDay} hrs/day (${parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) ? '+' : ''}${(parseFloat(metrics.l7dAvgDaily) - parseFloat(metrics.avgWorkingDay)).toFixed(1)} hrs)` : 'Per day'}
+                color={metrics.avgWorkingDay && parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) * 1.2 ? '#FF3B30' : metrics.avgWorkingDay && parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) ? '#FF9500' : '#34C759'}
+                highlight={metrics.avgWorkingDay && parseFloat(metrics.l7dAvgDaily) > parseFloat(metrics.avgWorkingDay) * 1.2}
               />
               <MetricCard 
                 label="Historical Avg" 
@@ -2368,15 +2349,6 @@ export default function Hours() {
                 sublabel={`${weeklyGoalPace.paceStatus} (${weeklyGoalPace.delta > 0 ? '+' : ''}${weeklyGoalPace.delta} hrs)`}
                 color={weeklyGoalPace.paceColor}
                 highlight
-              />
-            )}
-            {routineSD && isPro && (
-              <MetricCard 
-                label="Routine SD" 
-                value={routineSD.combinedSD + 'h'}
-                sublabel={parseFloat(routineSD.combinedSD) < 1 ? '🟢 Stable' : parseFloat(routineSD.combinedSD) > 2 ? '🔴 Variable' : '🟡 Moderate'}
-                color={parseFloat(routineSD.combinedSD) < 1 ? '#34C759' : parseFloat(routineSD.combinedSD) > 2 ? '#FF3B30' : '#FF9500'}
-                highlight={parseFloat(routineSD.combinedSD) > 2}
               />
             )}
             {highStreak && isPro && (
@@ -2542,7 +2514,7 @@ export default function Hours() {
                   </div>
                 </div>
 
-                {/* 4. Routine Stability */}
+                {/* 4. Burnout Risk Score */}
                 <div style={{
                   padding: '16px',
                   backgroundColor: '#f9f9fb',
@@ -2553,35 +2525,10 @@ export default function Hours() {
                     <span style={{ fontSize: '20px', flexShrink: 0 }}>4.</span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
-                        Routine Stability
-                      </div>
-                      <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
-                        The standard deviation of your daily start and end times (converted to hours) over the last 30 days, measuring consistency.
-                      </div>
-                      {routineSD && (
-                        <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>
-                          Your routine SD: {routineSD.combinedSD}h ({parseFloat(routineSD.combinedSD) < 1 ? '🟢 Stable' : parseFloat(routineSD.combinedSD) > 2 ? '🔴 Variable' : '🟡 Moderate'})
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. Burnout Risk Score */}
-                <div style={{
-                  padding: '16px',
-                  backgroundColor: '#f9f9fb',
-                  borderRadius: '8px',
-                  border: '1px solid #e8e8ed'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    <span style={{ fontSize: '20px', flexShrink: 0 }}>5.</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '17px', fontWeight: '600', color: '#1d1d1f', marginBottom: '6px' }}>
                         Burnout Risk Score
                       </div>
                       <div style={{ fontSize: '15px', color: '#6e6e73', lineHeight: '1.5', marginBottom: '8px' }}>
-                        A 0-100 score adding components from recent intensity (last seven days versus 90 days average ratio), four-week workload, red-eye circadian disruption, and routine instability, minus bonuses for long recovery breaks.
+                        A 0-100 score adding components from recent intensity (last seven days versus 90 days average ratio), four-week workload, and red-eye circadian disruption, minus bonuses for long recovery breaks.
                       </div>
                       {burnout && burnout.breakdown && (
                         <div style={{ fontSize: '14px', color: '#86868b', fontStyle: 'italic' }}>

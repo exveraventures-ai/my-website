@@ -65,7 +65,6 @@ export default function Landing() {
             <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
               <a href="#features" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Features</a>
               <a href="#preview" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Preview</a>
-              <a href="#pricing" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Pricing</a>
               {isAuthenticated ? (
                 <>
                   <a href="/dashboard" style={{ color: 'rgba(255,255,255,0.8)', textDecoration: 'none', fontSize: '15px' }}>Dashboard</a>
@@ -177,20 +176,6 @@ export default function Landing() {
                       }}
                     >
                       Preview
-                    </a>
-                    <a
-                      href="#pricing"
-                      onClick={() => setMobileMenuOpen(false)}
-                      style={{
-                        display: 'block',
-                        color: 'rgba(255,255,255,0.8)',
-                        textDecoration: 'none',
-                        fontSize: '16px',
-                        padding: '12px 0',
-                        borderBottom: '1px solid rgba(255,255,255,0.1)'
-                      }}
-                    >
-                      Pricing
                     </a>
                     {isAuthenticated ? (
                       <>
@@ -686,9 +671,9 @@ export default function Landing() {
               marginLeft: 'auto',
               marginRight: 'auto'
             }}>
-              Unlock comprehensive burnout risk analysis, advanced comparative analytics, percentile breakdowns, and firm-specific comparisons for £1.99/month.
+              Unlock comprehensive burnout risk analysis, advanced comparative analytics, percentile breakdowns, and firm-specific comparisons.
             </p>
-            <a href="/signup?plan=pro" style={{
+            <a href="/request-access" style={{
               display: 'inline-block',
               padding: '16px 32px',
               backgroundColor: '#4F46E5',
@@ -699,66 +684,12 @@ export default function Landing() {
               fontWeight: '600',
               boxShadow: '0 8px 24px rgba(79,70,229,0.4)'
             }}>
-              Start Pro Trial - £1.99/month
+              Request Access
             </a>
           </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" style={{
-        padding: '100px 40px',
-        backgroundColor: '#000'
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: '48px',
-            fontWeight: '700',
-            color: '#fff',
-            textAlign: 'center',
-            marginBottom: '60px'
-          }}>
-            Simple, transparent pricing
-          </h2>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px', maxWidth: '900px', margin: '0 auto' }}>
-            <PricingCard 
-              title="Free"
-              price="£0"
-              period="forever"
-              features={[
-                'Unlimited hour tracking',
-                'L7D & historical averages',
-                'Workload intensity ratios',
-                'Streak tracking',
-                'Basic peer comparisons'
-              ]}
-              cta="Get Started"
-              ctaLink="/signup"
-            />
-            <PricingCard 
-              title="Pro"
-              price="£1.99"
-              period="/month"
-              features={[
-                'Everything in Free',
-                'Burnout Risk Assessment',
-                'Overall Risk Score (0-100)',
-                'Weekly Workload Analysis',
-                'Circadian Disruption Index',
-                'Recovery Window Status',
-                'Advanced Comparative Analytics',
-                'Percentile Breakdowns (P25/P50/P75)',
-                'Firm-Specific Comparisons',
-                'Personalized Recommendations'
-              ]}
-              cta="Start Free Trial"
-              ctaLink="/signup?plan=pro"
-              highlighted
-            />
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer style={{
@@ -834,66 +765,6 @@ function StatCard({ label, value, color }) {
     }}>
       <div style={{ fontSize: '12px', color: '#6e6e73', marginBottom: '8px', fontWeight: '500' }}>{label}</div>
       <div style={{ fontSize: '28px', fontWeight: '700', color: color }}>{value}</div>
-    </div>
-  )
-}
-
-function PricingCard({ title, price, period, features, cta, ctaLink, highlighted }) {
-  return (
-    <div style={{
-      backgroundColor: highlighted ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.05)',
-      padding: '40px',
-      borderRadius: '16px',
-      border: highlighted ? '2px solid #4F46E5' : '1px solid rgba(255,255,255,0.1)',
-      position: 'relative'
-    }}>
-      {highlighted && (
-        <div style={{
-          position: 'absolute',
-          top: '-12px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '4px 16px',
-          backgroundColor: '#4F46E5',
-          color: 'white',
-          borderRadius: '12px',
-          fontSize: '12px',
-          fontWeight: '600'
-        }}>
-          MOST POPULAR
-        </div>
-      )}
-      <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#fff', marginBottom: '12px' }}>{title}</h3>
-      <div style={{ marginBottom: '24px' }}>
-        <span style={{ fontSize: '48px', fontWeight: '700', color: '#fff' }}>{price}</span>
-        <span style={{ fontSize: '16px', color: 'rgba(255,255,255,0.6)' }}>{period}</span>
-      </div>
-      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0' }}>
-        {features.map((feature, idx) => (
-          <li key={idx} style={{
-            padding: '12px 0',
-            color: 'rgba(255,255,255,0.8)',
-            fontSize: '15px',
-            borderTop: idx === 0 ? 'none' : '1px solid rgba(255,255,255,0.1)'
-          }}>
-            ✓ {feature}
-          </li>
-        ))}
-      </ul>
-      <a href={ctaLink} style={{
-        display: 'block',
-        padding: '14px',
-        backgroundColor: highlighted ? '#4F46E5' : 'rgba(255,255,255,0.1)',
-        color: 'white',
-        textDecoration: 'none',
-        borderRadius: '10px',
-        fontSize: '16px',
-        fontWeight: '600',
-        textAlign: 'center',
-        border: highlighted ? 'none' : '1px solid rgba(255,255,255,0.2)'
-      }}>
-        {cta}
-      </a>
     </div>
   )
 }
