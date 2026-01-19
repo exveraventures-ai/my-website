@@ -5,7 +5,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Footer from '../components/Footer'
+import Navigation from '../components/Navigation'
 import { useIsMobile } from '../lib/useMediaQuery'
+import { navigateTo } from '../lib/capacitorNavigation'
 
 export default function Dashboard() {
   const router = useRouter()
@@ -23,23 +25,38 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    checkUserAndFetch()
+    // Initialize with error handling
+    checkUserAndFetch().catch(err => {
+      console.error('Initialization failed:', err)
+      setLoading(false)
+    })
   }, [])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     localStorage.removeItem('burnoutiQ_user_id')
-    router.push('/login')
+    navigateTo('/login', router)
   }
 
   const checkUserAndFetch = async () => {
-    // Check authentication first
-    const { data: { session } } = await supabase.auth.getSession()
-    
-    if (!session) {
-      router.push('/login')
-      return
-    }
+    try {
+      setLoading(true)
+      
+      // Check authentication first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError)
+        setLoading(false)
+        navigateTo('/login', router)
+        return
+      }
+      
+      if (!session) {
+        setLoading(false)
+        navigateTo('/login', router)
+        return
+      }
 
     let storedUserId = localStorage.getItem('burnoutiQ_user_id')
     
@@ -55,7 +72,8 @@ export default function Dashboard() {
         // Check if user is approved (unless they're an admin)
         if (!profile.is_approved && !profile.is_admin) {
           await supabase.auth.signOut()
-          router.push('/login?message=pending')
+          setLoading(false)
+          navigateTo('/login?message=pending', router)
           return
         }
         
@@ -64,7 +82,8 @@ export default function Dashboard() {
         setUserId(profile.id)
         setUserProfile(profile)
       } else {
-        router.push('/profile')
+        setLoading(false)
+        navigateTo('/profile', router)
         return
       }
     } else {
@@ -80,7 +99,8 @@ export default function Dashboard() {
         // Check if user is approved (unless they're an admin)
         if (!profile.is_approved && !profile.is_admin) {
           await supabase.auth.signOut()
-          router.push('/login?message=pending')
+          setLoading(false)
+          navigateTo('/login?message=pending', router)
           return
         }
         
@@ -109,6 +129,10 @@ export default function Dashboard() {
     }
 
     setLoading(false)
+    } catch (error) {
+      console.error('Error in checkUserAndFetch:', error)
+      setLoading(false)
+    }
   }
 
   const fetchCohortStats = async (profile) => {
@@ -763,13 +787,24 @@ export default function Dashboard() {
     return (
       <div style={{ 
         minHeight: '100vh',
-        backgroundColor: '#f5f5f7',
+        backgroundColor: 'var(--background)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+        fontFamily: 'var(--font-sans)'
       }}>
-        <p style={{ fontSize: '19px', color: '#6e6e73' }}>Loading...</p>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: 'var(--foreground)',
+            marginBottom: '16px',
+            letterSpacing: '-0.02em'
+          }}>
+            Burnout <span style={{ color: 'var(--primary)' }}>IQ</span>
+          </div>
+          <p style={{ fontSize: '16px', color: 'var(--muted-foreground)' }}>Loading...</p>
+        </div>
       </div>
     )
   }
@@ -780,201 +815,7 @@ export default function Dashboard() {
       backgroundColor: '#f5f5f7',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     }}>
-      {/* Navigation Banner */}
-      <nav style={{
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(0,0,0,0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000
-      }}>
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: isMobile ? '12px 20px' : '16px 40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '30px',
-          flexWrap: 'wrap'
-        }}>
-          <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={{
-            fontSize: isMobile ? '18px' : '20px',
-            fontWeight: '700',
-            color: '#1d1d1f',
-            textDecoration: 'none',
-            letterSpacing: '-0.02em'
-          }}>
-            Burnout <span style={{ color: '#06B6D4', fontWeight: '800' }}>IQ</span>
-          </a>
-          
-          {!isMobile && (
-            <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <a href="/dashboard" onClick={() => setShowProfileMenu(false)} style={{...navLinkStyle, fontWeight: '600', color: '#007AFF'}}>Dashboard</a>
-            <a href="/hours" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Working Hours</a>
-            <a href="/health" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Health Stats</a>
-            <a href="/compare" onClick={() => setShowProfileMenu(false)} style={navLinkStyle}>Comparisons</a>
-            <a href="#methodology" onClick={() => {
-              setShowProfileMenu(false)
-              setTimeout(() => {
-                const element = document.getElementById('methodology')
-                if (element) {
-                  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  setMethodologySectionCollapsed(false)
-                }
-              }, 100)
-            }} style={navLinkStyle}>Methodology</a>
-          </div>
-          )}
-          
-          {!isMobile && (
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: userProfile?.is_pro ? '#FFD700' : '#4F46E5',
-                  color: userProfile?.is_pro ? '#1d1d1f' : 'white',
-                  borderRadius: '20px',
-                  fontWeight: '600',
-                  fontSize: '15px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                Profile
-                {userProfile?.is_pro && <span style={{ fontSize: '12px', fontWeight: '700' }}>✨</span>}
-                <span style={{ fontSize: '10px' }}>▼</span>
-              </button>
-              
-              {showProfileMenu && (
-                <>
-                  <div
-                    onClick={() => setShowProfileMenu(false)}
-                    style={{
-                      position: 'fixed',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      zIndex: 999
-                    }}
-                  />
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    backgroundColor: 'white',
-                    borderRadius: '12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                    zIndex: 1000,
-                    minWidth: '240px',
-                    overflow: 'hidden'
-                  }}>
-                    {userProfile && (
-                      <div style={{
-                        padding: '16px',
-                        borderBottom: '1px solid #e8e8ed'
-                      }}>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1d1d1f', marginBottom: '4px' }}>
-                          {userProfile.email}
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#6e6e73' }}>
-                          {userProfile.position} · {userProfile.company}
-                        </div>
-                      </div>
-                    )}
-                    <a
-                      href="/profile"
-                      onClick={() => setShowProfileMenu(false)}
-                      style={{
-                        display: 'block',
-                        padding: '12px 16px',
-                        color: '#1d1d1f',
-                        textDecoration: 'none',
-                        fontSize: '15px',
-                        fontFamily: 'inherit',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      ⚙️ Edit Profile
-                    </a>
-                    <a
-                      href="/settings"
-                      onClick={() => setShowProfileMenu(false)}
-                      style={{
-                        display: 'block',
-                        padding: '12px 16px',
-                        color: '#1d1d1f',
-                        textDecoration: 'none',
-                        fontSize: '15px',
-                        fontFamily: 'inherit',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      ⚙️ Settings
-                    </a>
-                    {userProfile?.is_admin && (
-                      <a
-                        href="/admin"
-                        onClick={() => setShowProfileMenu(false)}
-                        style={{
-                          display: 'block',
-                          padding: '12px 16px',
-                          color: '#1d1d1f',
-                          textDecoration: 'none',
-                          fontSize: '15px',
-                          fontFamily: 'inherit',
-                          transition: 'background-color 0.2s',
-                          borderTop: '1px solid #e8e8ed'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        👑 Admin Panel
-                      </a>
-                    )}
-                    <div style={{
-                      borderTop: '1px solid #e8e8ed'
-                    }}>
-                      <button
-                        onClick={handleSignOut}
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          backgroundColor: 'transparent',
-                          color: '#FF3B30',
-                          border: 'none',
-                          borderRadius: '0',
-                          fontWeight: '600',
-                          fontSize: '15px',
-                          cursor: 'pointer',
-                          fontFamily: 'inherit',
-                          textAlign: 'left',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f5f7'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        🚪 Sign Out
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </nav>
+      <Navigation userProfile={userProfile} />
 
       <div style={{ 
         maxWidth: '1400px', 

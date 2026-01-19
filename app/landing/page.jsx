@@ -13,22 +13,29 @@ export default function Landing() {
   const isMobile = useIsMobile()
 
   useEffect(() => {
-    checkAuth()
+    // Check auth with error handling
+    checkAuth().catch(err => {
+      console.error('Auth check failed:', err)
+    })
   }, [])
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', session.user.email)
-        .single()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', session.user.email)
+          .single()
 
-      if (profile && (profile.is_approved || profile.is_admin)) {
-        setUserProfile(profile)
-        setIsAuthenticated(true)
+        if (profile && (profile.is_approved || profile.is_admin)) {
+          setUserProfile(profile)
+          setIsAuthenticated(true)
+        }
       }
+    } catch (error) {
+      console.error('Auth check error:', error)
     }
   }
 
