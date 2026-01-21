@@ -32,11 +32,13 @@ export async function POST(request) {
       to = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'exveraventures@gmail.com';
       subject = `New Access Request: ${data.first_name} ${data.last_name}`;
       emailContent = generateAdminNotificationHTML(data);
+      console.log('Sending admin notification to:', to);
     } else if (type === 'approval') {
       // User approval/welcome email
       to = data.email;
       subject = '🎉 Welcome to Burnout IQ - Your access is approved!';
       emailContent = generateApprovalHTML(data);
+      console.log('Sending approval email to:', to);
     } else {
       return NextResponse.json({ error: 'Invalid email type' }, { status: 400 });
     }
@@ -50,9 +52,12 @@ export async function POST(request) {
 
     if (error) {
       console.error('Resend error:', error);
+      console.error('Failed to send to:', to);
+      console.error('Email type:', type);
       return NextResponse.json({ error: error.message }, { status: 500, headers });
     }
 
+    console.log('✅ Email sent successfully!', { id: emailData.id, to, type });
     return NextResponse.json({ success: true, id: emailData.id }, { headers });
   } catch (error) {
     console.error('Email API error:', error);
