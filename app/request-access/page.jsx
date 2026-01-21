@@ -72,6 +72,27 @@ export default function RequestAccess() {
     setMessage('')
 
     try {
+      // First check if this email already has a request or account
+      const { data: existingRequest } = await supabase
+        .from('access_requests')
+        .select('status')
+        .eq('email', formData.email)
+        .single()
+
+      if (existingRequest) {
+        setLoading(false)
+        if (existingRequest.status === 'approved') {
+          setMessage('Your account has already been approved! Please log in using the button below.')
+          return
+        } else if (existingRequest.status === 'pending') {
+          setMessage('You have already requested access with this email. We will review your request within 24-48 hours.')
+          return
+        } else if (existingRequest.status === 'rejected') {
+          setMessage('Your previous access request was not approved. Please contact support for more information.')
+          return
+        }
+      }
+
       // Only create access request - no auth account needed yet
       const { error: requestError } = await supabase
         .from('access_requests')
@@ -87,10 +108,6 @@ export default function RequestAccess() {
         }])
 
       if (requestError) {
-        // Check if it's a duplicate email error
-        if (requestError.code === '23505' || requestError.message.includes('duplicate')) {
-          throw new Error('An access request with this email already exists. Please wait for approval or contact support.')
-        }
         throw requestError
       }
 
@@ -458,15 +475,36 @@ export default function RequestAccess() {
 
           {message && (
             <div style={{
-              padding: '16px',
+              padding: '20px',
               borderRadius: '12px',
-              backgroundColor: message.includes('Error') ? '#FFEBEE' : '#E8F5E9',
-              border: `1px solid ${message.includes('Error') ? '#FFCDD2' : '#C8E6C9'}`,
-              color: message.includes('Error') ? '#C62828' : '#2E7D32',
+              backgroundColor: message.includes('approved') ? '#E3F2FD' : message.includes('Error') || message.includes('rejected') ? '#FFEBEE' : '#FFF3E0',
+              border: `2px solid ${message.includes('approved') ? '#2196F3' : message.includes('Error') || message.includes('rejected') ? '#FFCDD2' : '#FFB74D'}`,
+              color: message.includes('approved') ? '#1565C0' : message.includes('Error') || message.includes('rejected') ? '#C62828' : '#E65100',
               fontSize: '15px',
-              lineHeight: 1.5
+              lineHeight: 1.6,
+              textAlign: 'center'
             }}>
-              {message}
+              <div style={{ marginBottom: message.includes('approved') ? '16px' : '0' }}>
+                {message}
+              </div>
+              {message.includes('approved') && (
+                <a
+                  href="/login"
+                  style={{
+                    display: 'inline-block',
+                    padding: '12px 24px',
+                    backgroundColor: '#2196F3',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    marginTop: '8px'
+                  }}
+                >
+                  Go to Login →
+                </a>
+              )}
             </div>
           )}
 
