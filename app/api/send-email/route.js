@@ -4,13 +4,20 @@ import { NextResponse } from 'next/server';
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export async function POST(request) {
+  // Add CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
   try {
     // Check if Resend is configured
     if (!resend) {
       console.error('Resend API key not configured');
       return NextResponse.json({ 
         error: 'Email service not configured. Please add RESEND_API_KEY to environment variables.' 
-      }, { status: 500 });
+      }, { status: 500, headers });
     }
 
     const body = await request.json();
@@ -43,14 +50,26 @@ export async function POST(request) {
 
     if (error) {
       console.error('Resend error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500, headers });
     }
 
-    return NextResponse.json({ success: true, id: emailData.id });
+    return NextResponse.json({ success: true, id: emailData.id }, { headers });
   } catch (error) {
     console.error('Email API error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers });
   }
+}
+
+// Handle OPTIONS for CORS preflight
+export async function OPTIONS(request) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
 }
 
 function generateAdminNotificationHTML(data) {
