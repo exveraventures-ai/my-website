@@ -16,21 +16,54 @@ This document contains the HTML email templates for Burnout IQ email notificatio
    - Copy your Service ID
 
 4. **Create TWO email templates** using the HTML below:
-   - **Template 1**: Admin Notification (required)
-   - **Template 2**: User Confirmation (required)
-   - Template 3 (Approval/Welcome) is optional - nice to have but not critical
+   - **Template 1**: Admin Notification (nice to have - notifies you of new requests)
+   - **Template 2**: User Approval/Welcome (REQUIRED - tells users how to set up their password)
+   
+   Note: Template 3 (User Confirmation) is optional - just confirms request was received.
 
 5. **Add environment variables** to `.env.local`:
    ```bash
    NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
-   NEXT_PUBLIC_EMAILJS_TEMPLATE_REQUEST_ID=your_request_template_id
-   NEXT_PUBLIC_EMAILJS_TEMPLATE_ADMIN_NOTIFICATION_ID=your_admin_template_id
+   NEXT_PUBLIC_EMAILJS_TEMPLATE_APPROVAL_ID=your_approval_template_id
    NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
+   
+   # Optional (nice to have):
+   NEXT_PUBLIC_EMAILJS_TEMPLATE_ADMIN_NOTIFICATION_ID=your_admin_template_id
    NEXT_PUBLIC_ADMIN_EMAIL=alex.f.nash@gmail.com
    
-   # Optional (only if you set up Template 3):
-   # NEXT_PUBLIC_EMAILJS_TEMPLATE_APPROVAL_ID=your_approval_template_id
+   # Optional (user request confirmation):
+   # NEXT_PUBLIC_EMAILJS_TEMPLATE_REQUEST_ID=your_request_template_id
    ```
+
+## How The Flow Works
+
+### Proper Authentication Flow:
+
+1. **User Requests Access** → Submits form on `/request-access`
+   - Optional: User receives confirmation email (Template 3 - if configured)
+   - Optional: Admin receives notification email (Template 1 - if configured)
+   
+2. **Admin Approves Request** → Admin panel at `/admin`
+   - Creates user profile in database
+   - **Sends approval/welcome email (Template 2 - REQUIRED)**
+   - Email contains instructions to set up password
+
+3. **User Sets Up Account**:
+   - Receives approval email
+   - Clicks "Go to Login Page" button
+   - Clicks "Forgot Password?" link
+   - Enters their email
+   - Receives Supabase password reset email
+   - Sets password and logs in!
+
+### Why Template 2 (Approval) is Critical:
+
+Without the approval email, users won't know:
+- That they've been approved
+- How to set up their password
+- That they need to use "Forgot Password" to create their account
+
+The other templates are helpful but not essential for the auth flow to work.
 
 ---
 
@@ -308,15 +341,29 @@ This document contains the HTML email templates for Burnout IQ email notificatio
               </h2>
               
               <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #1d1d1f;">
-                Your access request to <strong>Burnout IQ</strong> has been approved! You can now log in and start tracking your working hours, analyzing your burnout risk, and maintaining a sustainable work-life balance.
+                Your access request to <strong>Burnout IQ</strong> has been approved! Follow the steps below to set up your account and start tracking your working hours.
               </p>
+              
+              <!-- Setup Instructions -->
+              <div style="margin-bottom: 32px; padding: 24px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
+                <h3 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #92400e;">
+                  🔐 Set Up Your Password
+                </h3>
+                <ol style="margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #78350f;">
+                  <li>Click the button below to go to the login page</li>
+                  <li>Click <strong>"Forgot your password?"</strong></li>
+                  <li>Enter your email: <strong>{{user_email}}</strong></li>
+                  <li>Check your email for the password reset link</li>
+                  <li>Set your new password and log in!</li>
+                </ol>
+              </div>
               
               <!-- Primary CTA -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
                 <tr>
                   <td align="center">
                     <a href="{{login_url}}" style="display: inline-block; padding: 16px 32px; background-color: #4F46E5; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 17px; font-weight: 600; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-                      Sign In to Get Started →
+                      Go to Login Page →
                     </a>
                   </td>
                 </tr>
@@ -404,13 +451,13 @@ This document contains the HTML email templates for Burnout IQ email notificatio
                 </tr>
               </table>
               
-              <!-- Password Info -->
-              <div style="margin-top: 32px; padding: 20px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
-                <p style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #92400e;">
-                  Don't have a password yet?
+              <!-- Support Info -->
+              <div style="margin-top: 32px; padding: 20px; background-color: #f0f9ff; border-left: 4px solid #06B6D4; border-radius: 8px;">
+                <p style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #164e63;">
+                  Need help getting started?
                 </p>
-                <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #78350f;">
-                  Click "Forgot Password" on the <a href="{{login_url}}" style="color: #b45309; text-decoration: none; font-weight: 500;">login page</a> to set up your password, or contact support for assistance.
+                <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #155e75;">
+                  If you have any issues setting up your password or logging in, contact us at <a href="mailto:support@burnoutiQ.com" style="color: #0891b2; text-decoration: none; font-weight: 500;">support@burnoutiQ.com</a>
                 </p>
               </div>
             </td>

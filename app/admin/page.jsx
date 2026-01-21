@@ -134,7 +134,7 @@ export default function Admin() {
 
   const handleApprove = async (requestId, requestData) => {
     try {
-      // Update access request status
+      // Step 1: Update access request status
       const { error: updateError } = await supabase
         .from('access_requests')
         .update({
@@ -146,7 +146,7 @@ export default function Admin() {
 
       if (updateError) throw updateError
 
-      // Create or update user profile with approval
+      // Step 2: Create or update user profile with approval
       const { data: existingUser } = await supabase
         .from('users')
         .select('*')
@@ -183,21 +183,19 @@ export default function Admin() {
           }])
       }
 
-      // Send approval email (Email 3: Your access has been approved)
-      // Note: This requires a third EmailJS template. If not configured, it will be skipped.
-      try {
-        const emailResult = await sendApprovalEmail(requestData)
-        if (emailResult.success) {
-          console.log('Approval email sent successfully')
-        }
-      } catch (emailError) {
-        console.log('Approval email not sent (template not configured):', emailError)
+      // Step 3: Send welcome/invitation email with setup instructions
+      const emailResult = await sendApprovalEmail(requestData)
+      
+      if (!emailResult.success) {
+        console.error('Failed to send approval email:', emailResult.error)
+        alert(`⚠️ Request approved and profile created, but failed to send invitation email.\n\nPlease manually email ${requestData.email} with login instructions.`)
+      } else {
+        alert(`✓ Request approved!\n\nInvitation email sent to: ${requestData.email}\n\nThe user should visit the login page and click "Forgot Password" to set up their account.`)
       }
 
       // Reload requests
       loadAccessRequests()
       
-      alert(`Request approved! User profile created. User can now log in with: ${requestData.email}`)
     } catch (error) {
       console.error('Error approving request:', error)
       alert('Error approving request: ' + error.message)
