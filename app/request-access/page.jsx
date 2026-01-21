@@ -103,32 +103,14 @@ export default function RequestAccess() {
         .limit(1)
         .single()
 
-      // Send emails in parallel (don't block on email failures)
-      const emailPromises = []
-      
-      // Email 1: User confirmation
-      emailPromises.push(
-        sendAccessRequestEmail({
-          ...formData,
-          created_at: createdRequest?.created_at
-        }).catch(err => {
-          console.error('Failed to send user confirmation email:', err)
-        })
-      )
-      
-      // Email 2: Admin notification
-      emailPromises.push(
-        sendAdminNotificationEmail(
-          createdRequest || formData,
-          process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'alex.f.nash@gmail.com'
-        ).catch(err => {
-          console.error('Failed to send admin notification email:', err)
-        })
-      )
-      
-      // Don't wait for emails - they're fire-and-forget
-      Promise.all(emailPromises).then(() => {
-        console.log('Email notifications sent')
+      // Send admin notification email only (user gets email when approved, not when requested)
+      sendAdminNotificationEmail(
+        createdRequest || formData,
+        process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'exveraventures@gmail.com'
+      ).then(() => {
+        console.log('Admin notification email sent')
+      }).catch(err => {
+        console.error('Failed to send admin notification email:', err)
       })
 
       // Show success page instead of redirecting

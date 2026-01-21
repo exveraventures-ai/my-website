@@ -6,6 +6,13 @@
  */
 export const sendAdminNotificationEmail = async (requestData, adminEmail) => {
   try {
+    console.log('📧 [Admin Email] Starting...')
+    console.log('Service ID:', process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID)
+    console.log('Template ID:', process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ADMIN_NOTIFICATION_ID)
+    console.log('Public Key:', process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY ? '✓ Set' : '✗ Missing')
+    console.log('Admin Email:', adminEmail)
+    console.log('EmailJS loaded:', typeof window !== 'undefined' && !!window.emailjs)
+    
     if (typeof window !== 'undefined' && window.emailjs) {
       const emailjs = window.emailjs
       
@@ -36,7 +43,7 @@ export const sendAdminNotificationEmail = async (requestData, adminEmail) => {
         process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
       )
 
-      console.log('Admin notification email sent')
+      console.log('✓ Admin notification email sent successfully!')
       return { success: true }
     } else {
       console.warn('EmailJS not configured - skipping admin notification email')
@@ -92,6 +99,13 @@ export const sendAccessRequestEmail = async (userData) => {
  */
 export const sendApprovalEmail = async (userData) => {
   try {
+    console.log('📧 [Approval Email] Starting...')
+    console.log('Service ID:', process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID)
+    console.log('Template ID:', process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_APPROVAL_ID)
+    console.log('Public Key:', process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY ? '✓ Set' : '✗ Missing')
+    console.log('User Email:', userData.email)
+    console.log('EmailJS loaded:', typeof window !== 'undefined' && !!window.emailjs)
+    
     if (typeof window !== 'undefined' && window.emailjs) {
       const emailjs = window.emailjs
       
@@ -114,7 +128,7 @@ export const sendApprovalEmail = async (userData) => {
         process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
       )
 
-      console.log('Approval email sent')
+      console.log('✓ Approval email sent successfully!')
       return { success: true }
     } else {
       console.warn('EmailJS not configured - skipping email')
@@ -135,7 +149,7 @@ export const initializeEmailJS = () => {
     if (publicKey && publicKey !== 'YOUR_PUBLIC_KEY') {
       try {
         window.emailjs.init(publicKey)
-        console.log('EmailJS initialized')
+        console.log('✓ EmailJS initialized with key:', publicKey.substring(0, 8) + '...')
       } catch (error) {
         console.error('Error initializing EmailJS:', error)
       }
