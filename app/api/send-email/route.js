@@ -1,6 +1,10 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 
+// Ensure this runs on Node.js runtime, not Edge
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export async function POST(request) {
