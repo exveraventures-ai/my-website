@@ -41,10 +41,26 @@ const inputStyle = {
 
 const dateInputStyle = {
   ...inputStyle,
-  fontSize: '17px',
-  padding: '14px 16px',
-  fontWeight: '500',
   cursor: 'pointer'
+}
+
+const quickDateButtonStyle = {
+  padding: '8px 16px',
+  backgroundColor: 'white',
+  color: '#4F46E5',
+  border: '2px solid #4F46E5',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  fontSize: '14px',
+  fontWeight: '600',
+  fontFamily: 'inherit',
+  transition: 'all 0.2s'
+}
+
+const quickDateButtonActiveStyle = {
+  ...quickDateButtonStyle,
+  backgroundColor: '#4F46E5',
+  color: 'white'
 }
 
 const buttonStyle = {
@@ -2005,6 +2021,34 @@ export default function Hours() {
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', flexWrap: isMobile ? 'nowrap' : 'wrap', alignItems: isMobile ? 'stretch' : 'flex-end' }}>
             <div style={{ flex: isMobile ? 'none' : '1 1 200px', width: isMobile ? '100%' : 'auto' }}>
               <label style={labelStyle}>Date</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0]
+                    setFormData({...formData, date: today})
+                  }}
+                  style={formData.date === new Date().toISOString().split('T')[0] ? quickDateButtonActiveStyle : quickDateButtonStyle}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const yesterday = new Date()
+                    yesterday.setDate(yesterday.getDate() - 1)
+                    const yesterdayStr = yesterday.toISOString().split('T')[0]
+                    setFormData({...formData, date: yesterdayStr})
+                  }}
+                  style={(() => {
+                    const yesterday = new Date()
+                    yesterday.setDate(yesterday.getDate() - 1)
+                    return formData.date === yesterday.toISOString().split('T')[0] ? quickDateButtonActiveStyle : quickDateButtonStyle
+                  })()}
+                >
+                  Yesterday
+                </button>
+              </div>
               <input
                 type="date"
                 value={formData.date}
