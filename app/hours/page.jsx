@@ -2734,16 +2734,6 @@ export default function Hours() {
                   name="L7D Total" 
                   dot={false}
                 />
-                <Line 
-                  yAxisId="right"
-                  type="monotone" 
-                  dataKey="weeklyProjection" 
-                  stroke="#06B6D4" 
-                  strokeWidth={2}
-                  name="Weekly Projection" 
-                  dot={false}
-                  strokeDasharray="5 5"
-                />
               </ComposedChart>
             </ResponsiveContainer>
           )}
