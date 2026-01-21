@@ -183,18 +183,21 @@ export default function Admin() {
           }])
       }
 
-      // Send approval email (Email 2: Your access has been approved)
-      const emailResult = await sendApprovalEmail(requestData)
-      if (!emailResult.success) {
-        console.error('Failed to send approval email:', emailResult.error)
-        // Don't fail the approval if email fails, but notify admin
+      // Send approval email (Email 3: Your access has been approved)
+      // Note: This requires a third EmailJS template. If not configured, it will be skipped.
+      try {
+        const emailResult = await sendApprovalEmail(requestData)
+        if (emailResult.success) {
+          console.log('Approval email sent successfully')
+        }
+      } catch (emailError) {
+        console.log('Approval email not sent (template not configured):', emailError)
       }
 
       // Reload requests
       loadAccessRequests()
       
-      const emailStatus = emailResult.success ? 'Approval email sent' : 'Approval email failed (check console)'
-      alert(`Request approved! User profile created. ${emailStatus} to ${requestData.email}`)
+      alert(`Request approved! User profile created. User can now log in with: ${requestData.email}`)
     } catch (error) {
       console.error('Error approving request:', error)
       alert('Error approving request: ' + error.message)

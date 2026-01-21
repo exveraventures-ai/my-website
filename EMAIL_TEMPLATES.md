@@ -15,16 +15,21 @@ This document contains the HTML email templates for Burnout IQ email notificatio
    - Connect your email provider (Gmail, Outlook, etc.)
    - Copy your Service ID
 
-4. **Create three email templates** using the HTML below
+4. **Create TWO email templates** using the HTML below:
+   - **Template 1**: Admin Notification (required)
+   - **Template 2**: User Confirmation (required)
+   - Template 3 (Approval/Welcome) is optional - nice to have but not critical
 
 5. **Add environment variables** to `.env.local`:
    ```bash
    NEXT_PUBLIC_EMAILJS_SERVICE_ID=your_service_id
    NEXT_PUBLIC_EMAILJS_TEMPLATE_REQUEST_ID=your_request_template_id
-   NEXT_PUBLIC_EMAILJS_TEMPLATE_APPROVAL_ID=your_approval_template_id
    NEXT_PUBLIC_EMAILJS_TEMPLATE_ADMIN_NOTIFICATION_ID=your_admin_template_id
    NEXT_PUBLIC_EMAILJS_PUBLIC_KEY=your_public_key
    NEXT_PUBLIC_ADMIN_EMAIL=alex.f.nash@gmail.com
+   
+   # Optional (only if you set up Template 3):
+   # NEXT_PUBLIC_EMAILJS_TEMPLATE_APPROVAL_ID=your_approval_template_id
    ```
 
 ---
@@ -472,14 +477,18 @@ This document contains the HTML email templates for Burnout IQ email notificatio
 
 ## Testing Checklist
 
-- [ ] Create all three templates in EmailJS
+- [ ] Create Template 1 (Admin Notification) in EmailJS
+- [ ] Create Template 2 (User Confirmation) in EmailJS
 - [ ] Test admin notification email
 - [ ] Test user confirmation email
-- [ ] Test approval/welcome email
 - [ ] Verify all links work correctly
 - [ ] Check email rendering on mobile devices
 - [ ] Verify email delivery times
 - [ ] Test with different email providers (Gmail, Outlook, etc.)
+
+**Optional:**
+- [ ] Create Template 3 (Approval/Welcome) if you want welcome emails
+- [ ] Test approval/welcome email
 
 ---
 
