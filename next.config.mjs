@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // Removed 'output: export' to enable API routes for email service
   trailingSlash: true,
   images: {
     unoptimized: true,
   },
-  // Disable server-side features that don't work with static export
-  // Since this app uses client-side Supabase, it should work fine
 };
 
 export default nextConfig;
