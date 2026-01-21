@@ -382,16 +382,17 @@ export default function Hours() {
         .eq('Date', formData.date)
     }
 
-    const totalHours = calculateHours(cleanStartTime, cleanEndTime, formData.adjustment)
+    // If it's a day off, set hours to 0 regardless of times
+    const totalHours = formData.isHoliday ? 0 : calculateHours(cleanStartTime, cleanEndTime, formData.adjustment)
 
     const { data, error} = await supabase
       .from('Work_Logs')
       .insert([
         {
           Date: formData.date,
-          'Start Time': cleanStartTime,
-          'End Time': cleanEndTime,
-          adjustment: parseFloat(formData.adjustment || 0),
+          'Start Time': formData.isHoliday ? null : cleanStartTime,
+          'End Time': formData.isHoliday ? null : cleanEndTime,
+          adjustment: formData.isHoliday ? 0 : parseFloat(formData.adjustment || 0),
           hours: totalHours,
           user_id: userId,
           is_holiday: formData.isHoliday || false
@@ -430,15 +431,17 @@ export default function Hours() {
   }
 
   const handleSaveEdit = async (user_id, originalDate) => {
-    if (!editData.date || !editData.startTime || !editData.endTime) {
+    // If it's a day off, we don't need times
+    if (!editData.isHoliday && (!editData.date || !editData.startTime || !editData.endTime)) {
       setMessage('Error: Please fill in all required fields')
       return
     }
     
-    const cleanStartTime = validateAndFormatTime(editData.startTime)
-    const cleanEndTime = validateAndFormatTime(editData.endTime)
+    const cleanStartTime = editData.isHoliday ? null : validateAndFormatTime(editData.startTime)
+    const cleanEndTime = editData.isHoliday ? null : validateAndFormatTime(editData.endTime)
 
-    const totalHours = calculateHours(cleanStartTime, cleanEndTime, editData.adjustment)
+    // If it's a day off, set hours to 0 regardless of times
+    const totalHours = editData.isHoliday ? 0 : calculateHours(cleanStartTime, cleanEndTime, editData.adjustment)
 
     if (editData.date !== originalDate) {
       await supabase
@@ -453,7 +456,7 @@ export default function Hours() {
           Date: editData.date,
           'Start Time': cleanStartTime,
           'End Time': cleanEndTime,
-          adjustment: parseFloat(editData.adjustment || 0),
+          adjustment: editData.isHoliday ? 0 : parseFloat(editData.adjustment || 0),
           hours: totalHours,
           user_id: user_id,
           is_holiday: editData.isHoliday || false
@@ -473,7 +476,7 @@ export default function Hours() {
         .update({
           'Start Time': cleanStartTime,
           'End Time': cleanEndTime,
-          adjustment: parseFloat(editData.adjustment || 0),
+          adjustment: editData.isHoliday ? 0 : parseFloat(editData.adjustment || 0),
           hours: totalHours,
           is_holiday: editData.isHoliday || false
         })
@@ -3107,7 +3110,7 @@ export default function Hours() {
                           />
                         </td>
                         <td style={tableCellStyle}>
-                          {calculateHours(editData.startTime || '00:00', editData.endTime || '00:00', editData.adjustment || 0).toFixed(2)} hrs
+                          {editData.isHoliday ? '0.00' : calculateHours(editData.startTime || '00:00', editData.endTime || '00:00', editData.adjustment || 0).toFixed(2)} hrs
                         </td>
                         <td style={tableCellStyle}>
                           <button onClick={() => handleSaveEdit(log.user_id, log.Date)} style={saveButtonStyle}>
@@ -3145,7 +3148,9 @@ export default function Hours() {
                         <td style={tableCellStyle}>
                           {log.is_holiday ? '🌙 Yes' : '-'}
                         </td>
-                        <td style={tableCellStyle}>{parseFloat(log.hours || 0).toFixed(2)} hrs</td>
+                        <td style={tableCellStyle}>
+                          {log.is_holiday ? '0.00 hrs' : `${parseFloat(log.hours || 0).toFixed(2)} hrs`}
+                        </td>
                         <td style={tableCellStyle}>
                           <button onClick={() => handleEdit(log)} style={editButtonStyle}>
                             ✏️ Edit
