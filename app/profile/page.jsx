@@ -237,15 +237,14 @@ export default function Profile() {
   ]
 
   const regions = [
-    'UK & Ireland',
-    'Continental Europe',
-    'US Northeast',
-    'US West Coast',
-    'US Southeast',
-    'US Midwest',
-    'APAC',
-    'Latin America',
-    'Middle East & Africa'
+    'USA - New York',
+    'USA - Boston',
+    'USA - Los Angeles',
+    'Europe - London',
+    'Europe - Milan',
+    'Europe - Paris',
+    'Europe - Frankfurt',
+    'Europe - Madrid'
   ]
 
   return (

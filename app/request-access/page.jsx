@@ -35,12 +35,14 @@ export default function RequestAccess() {
   ]
 
   const regions = [
-    'North America',
-    'Europe',
-    'Asia',
-    'Middle East',
-    'Latin America',
-    'Australia'
+    'USA - New York',
+    'USA - Boston',
+    'USA - Los Angeles',
+    'Europe - London',
+    'Europe - Milan',
+    'Europe - Paris',
+    'Europe - Frankfurt',
+    'Europe - Madrid'
   ]
 
   const groupedCompanies = firmCategories
