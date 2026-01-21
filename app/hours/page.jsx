@@ -39,6 +39,14 @@ const inputStyle = {
   outline: 'none'
 }
 
+const dateInputStyle = {
+  ...inputStyle,
+  fontSize: '17px',
+  padding: '14px 16px',
+  fontWeight: '500',
+  cursor: 'pointer'
+}
+
 const buttonStyle = {
   flex: '1 1 140px',
   padding: '12px 28px', 
@@ -141,7 +149,8 @@ export default function Hours() {
     date: new Date().toISOString().split('T')[0],
     startTime: '09:30',
     endTime: '21:30',
-    adjustment: 0
+    adjustment: 0,
+    isHoliday: false
   })
   const [message, setMessage] = useState('')
   const [workLogs, setWorkLogs] = useState([])
@@ -375,7 +384,7 @@ export default function Hours() {
 
     const totalHours = calculateHours(cleanStartTime, cleanEndTime, formData.adjustment)
 
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('Work_Logs')
       .insert([
         {
@@ -384,7 +393,8 @@ export default function Hours() {
           'End Time': cleanEndTime,
           adjustment: parseFloat(formData.adjustment || 0),
           hours: totalHours,
-          user_id: userId
+          user_id: userId,
+          is_holiday: formData.isHoliday || false
         }
       ])
 
@@ -400,7 +410,8 @@ export default function Hours() {
         date: new Date().toISOString().split('T')[0], 
         startTime: defaultStartTime, 
         endTime: defaultEndTime, 
-        adjustment: 0 
+        adjustment: 0,
+        isHoliday: false
       })
       checkUserAndFetch()
       setTimeout(() => setMessage(''), 3000)
@@ -413,7 +424,8 @@ export default function Hours() {
       date: log.Date,
       startTime: log['Start Time'],
       endTime: log['End Time'],
-      adjustment: log.adjustment || 0
+      adjustment: log.adjustment || 0,
+      isHoliday: log.is_holiday || false
     })
   }
 
@@ -443,7 +455,8 @@ export default function Hours() {
           'End Time': cleanEndTime,
           adjustment: parseFloat(editData.adjustment || 0),
           hours: totalHours,
-          user_id: user_id
+          user_id: user_id,
+          is_holiday: editData.isHoliday || false
         }])
 
       if (error) {
@@ -461,7 +474,8 @@ export default function Hours() {
           'Start Time': cleanStartTime,
           'End Time': cleanEndTime,
           adjustment: parseFloat(editData.adjustment || 0),
-          hours: totalHours
+          hours: totalHours,
+          is_holiday: editData.isHoliday || false
         })
         .eq('user_id', user_id)
         .eq('Date', originalDate)
@@ -1969,14 +1983,14 @@ export default function Hours() {
             </button>
           </div>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '16px', flexWrap: isMobile ? 'nowrap' : 'wrap', alignItems: isMobile ? 'stretch' : 'flex-end' }}>
-            <div style={{ flex: isMobile ? 'none' : '1 1 180px', width: isMobile ? '100%' : 'auto' }}>
+            <div style={{ flex: isMobile ? 'none' : '1 1 200px', width: isMobile ? '100%' : 'auto' }}>
               <label style={labelStyle}>Date</label>
               <input
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({...formData, date: e.target.value})}
                 required
-                style={inputStyle}
+                style={dateInputStyle}
               />
             </div>
 
@@ -2013,6 +2027,40 @@ export default function Hours() {
                 onChange={(e) => setFormData({...formData, adjustment: e.target.value})}
                 style={inputStyle}
               />
+            </div>
+
+            <div style={{ 
+              flex: isMobile ? 'none' : '1 1 160px', 
+              width: isMobile ? '100%' : 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 0'
+            }}>
+              <input
+                type="checkbox"
+                id="holiday-checkbox"
+                checked={formData.isHoliday}
+                onChange={(e) => setFormData({...formData, isHoliday: e.target.checked})}
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  cursor: 'pointer',
+                  accentColor: '#4F46E5'
+                }}
+              />
+              <label 
+                htmlFor="holiday-checkbox"
+                style={{
+                  fontSize: '15px',
+                  fontWeight: '500',
+                  color: '#1d1d1f',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
+              >
+                🏖️ Holiday/Day Off
+              </label>
             </div>
 
             <button type="submit" style={{...buttonStyle, width: isMobile ? '100%' : buttonStyle.flex, flex: isMobile ? 'none' : buttonStyle.flex}}>
@@ -2963,6 +3011,7 @@ export default function Hours() {
                   <th style={tableHeaderStyle}>Start Time</th>
                   <th style={tableHeaderStyle}>End Time</th>
                   <th style={tableHeaderStyle}>Adjustment</th>
+                  <th style={tableHeaderStyle}>Holiday</th>
                   <th style={tableHeaderStyle}>Total Hours</th>
                   <th style={tableHeaderStyle}>Actions</th>
                 </tr>
@@ -3028,6 +3077,19 @@ export default function Hours() {
                           />
                         </td>
                         <td style={tableCellStyle}>
+                          <input
+                            type="checkbox"
+                            checked={editData.isHoliday || false}
+                            onChange={(e) => setEditData({...editData, isHoliday: e.target.checked})}
+                            style={{
+                              width: '20px',
+                              height: '20px',
+                              cursor: 'pointer',
+                              accentColor: '#4F46E5'
+                            }}
+                          />
+                        </td>
+                        <td style={tableCellStyle}>
                           {calculateHours(editData.startTime || '00:00', editData.endTime || '00:00', editData.adjustment || 0).toFixed(2)} hrs
                         </td>
                         <td style={tableCellStyle}>
@@ -3063,6 +3125,9 @@ export default function Hours() {
                         <td style={tableCellStyle}>{log['Start Time'] || '-'}</td>
                         <td style={tableCellStyle}>{log['End Time'] || '-'}</td>
                         <td style={tableCellStyle}>{log.adjustment || 0} hrs</td>
+                        <td style={tableCellStyle}>
+                          {log.is_holiday ? '🏖️ Yes' : '-'}
+                        </td>
                         <td style={tableCellStyle}>{parseFloat(log.hours || 0).toFixed(2)} hrs</td>
                         <td style={tableCellStyle}>
                           <button onClick={() => handleEdit(log)} style={editButtonStyle}>
