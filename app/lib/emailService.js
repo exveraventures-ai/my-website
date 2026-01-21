@@ -7,6 +7,7 @@
 export const sendAdminNotificationEmail = async (requestData, adminEmail) => {
   try {
     console.log('📧 [Admin Email] Starting...')
+    console.log('Request data:', requestData)
     
     const response = await fetch('/api/send-email', {
       method: 'POST',
@@ -19,16 +20,18 @@ export const sendAdminNotificationEmail = async (requestData, adminEmail) => {
       }),
     });
 
+    console.log('Response status:', response.status)
     const result = await response.json();
+    console.log('Response data:', result)
 
     if (!response.ok) {
       throw new Error(result.error || 'Failed to send email');
     }
 
-    console.log('✓ Admin notification email sent successfully!')
+    console.log('✓ Admin notification email sent successfully! ID:', result.id)
     return { success: true, id: result.id }
   } catch (error) {
-    console.error('Error sending admin notification email:', error)
+    console.error('❌ Error sending admin notification email:', error)
     return { success: false, error: error.message }
   }
 }
@@ -48,6 +51,7 @@ export const sendAccessRequestEmail = async (userData) => {
 export const sendApprovalEmail = async (userData) => {
   try {
     console.log('📧 [Approval Email] Starting...')
+    console.log('User data:', userData)
     
     const response = await fetch('/api/send-email', {
       method: 'POST',
@@ -60,16 +64,18 @@ export const sendApprovalEmail = async (userData) => {
       }),
     });
 
+    console.log('Response status:', response.status)
     const result = await response.json();
+    console.log('Response data:', result)
 
     if (!response.ok) {
       throw new Error(result.error || 'Failed to send email');
     }
 
-    console.log('✓ Approval email sent successfully!')
+    console.log('✓ Approval email sent successfully! ID:', result.id)
     return { success: true, id: result.id }
   } catch (error) {
-    console.error('Error sending approval email:', error)
+    console.error('❌ Error sending approval email:', error)
     return { success: false, error: error.message }
   }
 }
