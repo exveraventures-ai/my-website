@@ -3,9 +3,8 @@
 import { supabase } from '../lib/supabase'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart } from 'recharts'
 import Footer from '../components/Footer'
-import HeatMap from '../components/HeatMap'
 import Navigation from '../components/Navigation'
 import { useIsMobile } from '../lib/useMediaQuery'
 import { navigateTo } from '../lib/capacitorNavigation'
@@ -1836,9 +1835,12 @@ export default function Hours() {
     const dayTotals = {}
     const dayCounts = {}
 
-    // Filter only completed entries (have both start and end time)
+    // Filter completed entries and exclude day-offs (holidays)
     workLogs.forEach(log => {
+      // Skip day-offs and incomplete entries
+      if (log.is_holiday) return
       if (!log['Start Time'] || !log['End Time']) return
+      
       const date = new Date(log.Date)
       const dayOfWeek = date.getDay()
       const dayName = dayNames[dayOfWeek]
@@ -2919,7 +2921,61 @@ export default function Hours() {
               )}
             </div>
             
-            <HeatMap workLogs={workLogs} isPro={isPro} />
+            {/* Average Hours by Day of Week */}
+            <div style={{ marginTop: '40px' }}>
+              <h3 style={{ 
+                fontSize: '22px',
+                fontWeight: '600',
+                margin: '0 0 20px 0',
+                color: '#1d1d1f'
+              }}>
+                Average Hours by Day of Week
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#6e6e73',
+                margin: '0 0 24px 0'
+              }}>
+                Excludes days marked as day-off
+              </p>
+              {dayOfWeekData && dayOfWeekData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={dayOfWeekData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="day" 
+                      tick={{ fill: '#6e6e73', fontSize: 12 }}
+                    />
+                    <YAxis 
+                      label={{ value: 'Average Hours', angle: -90, position: 'insideLeft', fill: '#6e6e73' }}
+                      tick={{ fill: '#6e6e73', fontSize: 12 }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(255,255,255,0.98)', 
+                        border: '1px solid #d2d2d7',
+                        borderRadius: '10px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}
+                      formatter={(value, name) => {
+                        if (name === 'avgHours') return [value + ' hrs', 'Average Hours']
+                        return [value, name]
+                      }}
+                    />
+                    <Bar 
+                      dataKey="avgHours" 
+                      fill="#4F46E5" 
+                      radius={[8, 8, 0, 0]}
+                      name="Average Hours"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <p style={{ color: '#6e6e73', textAlign: 'center', padding: '40px' }}>
+                  No data available yet. Start logging your hours!
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
