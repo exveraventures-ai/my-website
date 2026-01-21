@@ -578,11 +578,16 @@ export default function Hours() {
 
     let total = 0
     allLogs.forEach(log => {
-      // Only count completed entries (have both start and end time)
-      if (!log['Start Time'] || !log['End Time']) return
       const logDate = new Date(log.Date)
       if (logDate >= sevenDaysAgo && logDate <= currentDate) {
-        total += parseFloat(log.hours || 0)
+        // Day off counts as 0 hours (explicitly logged)
+        if (log.is_holiday) {
+          total += 0
+        } 
+        // Only count completed entries (have both start and end time)
+        else if (log['Start Time'] && log['End Time']) {
+          total += parseFloat(log.hours || 0)
+        }
       }
     })
     return total.toFixed(1)
@@ -614,13 +619,19 @@ export default function Hours() {
       all28Days.push(date.toISOString().split('T')[0])
     }
     
-    // Create map of logged days (only completed entries, missing days = 0)
+    // Create map of logged days (completed entries + day offs, missing days = 0)
     const loggedDaysMap = {}
     workLogs.forEach(log => {
       const logDate = new Date(log.Date)
-      // Only count completed entries (have both start and end time)
-      if (logDate >= fourWeeksAgo && logDate <= today && log['Start Time'] && log['End Time']) {
-        loggedDaysMap[log.Date] = log.hours || 0
+      if (logDate >= fourWeeksAgo && logDate <= today) {
+        // Day off counts as 0 hours
+        if (log.is_holiday) {
+          loggedDaysMap[log.Date] = 0
+        }
+        // Only count completed entries (have both start and end time)
+        else if (log['Start Time'] && log['End Time']) {
+          loggedDaysMap[log.Date] = log.hours || 0
+        }
       }
     })
     
@@ -758,8 +769,8 @@ export default function Hours() {
     const oneMonthAgo = new Date(today)
     oneMonthAgo.setDate(today.getDate() - 30)
     
-    // Filter only completed entries (have both start and end time), then sort by date
-    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    // Filter completed entries and day offs (both count as logged days), then sort by date
+    const completedLogs = workLogs.filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
     const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
 
     // Find longest recent break (consecutive days with <2h work)
@@ -819,13 +830,19 @@ export default function Hours() {
       }
     }
     
-    // Create map of logged weekend days (only completed entries)
+    // Create map of logged weekend days (completed entries + day offs)
     const loggedWeekendDays = {}
     workLogs.forEach(log => {
       const logDate = new Date(log.Date)
-      // Only count completed entries (have both start and end time)
-      if (logDate >= oneMonthAgo && logDate <= today && log['Start Time'] && log['End Time']) {
-        loggedWeekendDays[log.Date] = parseFloat(log.hours || 0)
+      if (logDate >= oneMonthAgo && logDate <= today) {
+        // Day off counts as 0 hours
+        if (log.is_holiday) {
+          loggedWeekendDays[log.Date] = 0
+        }
+        // Only count completed entries (have both start and end time)
+        else if (log['Start Time'] && log['End Time']) {
+          loggedWeekendDays[log.Date] = parseFloat(log.hours || 0)
+        }
       }
     })
     
@@ -914,8 +931,8 @@ export default function Hours() {
     const ninetyDaysAgo = new Date(today)
     ninetyDaysAgo.setDate(today.getDate() - 90)
     
-    // Filter completed entries
-    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    // Filter completed entries and day offs
+    const completedLogs = workLogs.filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
     const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
     
     // Build map of all dates in last 90 days
@@ -955,7 +972,7 @@ export default function Hours() {
     if (workLogs.length === 0) return { currentStreak: 0, maxStreak: 0 }
     
     const completedLogs = workLogs
-      .filter(log => log['Start Time'] && log['End Time'])
+      .filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
       .sort((a, b) => new Date(b.Date) - new Date(a.Date))
     
     let currentStreak = 0
@@ -985,7 +1002,7 @@ export default function Hours() {
     if (workLogs.length === 0) return null
     
     const completedLogs = workLogs
-      .filter(log => log['Start Time'] && log['End Time'])
+      .filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
       .sort((a, b) => new Date(b.Date) - new Date(a.Date))
     
     for (let i = 0; i < completedLogs.length; i++) {
@@ -1015,7 +1032,7 @@ export default function Hours() {
       const ninetyDaysAgo = new Date(today)
       ninetyDaysAgo.setDate(today.getDate() - 90)
       
-      const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+      const completedLogs = workLogs.filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
       
       // Calculate L7D and L90D
       const all7Days = []
@@ -1180,7 +1197,7 @@ export default function Hours() {
     const today = new Date()
     
     // Find the first log date to determine actual logging period
-    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    const completedLogs = workLogs.filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
     if (completedLogs.length === 0) return null
     
     const sortedLogs = [...completedLogs].sort((a, b) => new Date(a.Date) - new Date(b.Date))
@@ -1223,14 +1240,14 @@ export default function Hours() {
     const loggedDaysMap7 = {}
     const loggedDaysMap90 = {}
     workLogs.forEach(log => {
-      // Only count completed entries (have both start and end time)
-      if (!log['Start Time'] || !log['End Time']) return
+      // Count day offs as 0, skip incomplete entries
+      if (!log.is_holiday && (!log['Start Time'] || !log['End Time'])) return
       const logDate = new Date(log.Date)
       if (logDate >= sevenDaysAgo && logDate <= today) {
-        loggedDaysMap7[log.Date] = log.hours || 0
+        loggedDaysMap7[log.Date] = log.is_holiday ? 0 : (log.hours || 0)
       }
       if (logDate >= ninetyDaysAgo && logDate <= today) {
-        loggedDaysMap90[log.Date] = log.hours || 0
+        loggedDaysMap90[log.Date] = log.is_holiday ? 0 : (log.hours || 0)
       }
     })
     
@@ -1277,14 +1294,14 @@ export default function Hours() {
     startOfWeek.setDate(startOfWeek.getDate() - diff)
     startOfWeek.setHours(0, 0, 0, 0)
 
-    // Filter only completed entries (have both start and end time)
+    // Filter completed entries and day offs
     const currentWeekLogs = workLogs.filter(log => {
-      if (!log['Start Time'] || !log['End Time']) return false
+      if (!log.is_holiday && (!log['Start Time'] || !log['End Time'])) return false
       const logDate = new Date(log.Date)
       return logDate >= startOfWeek && logDate <= today
     })
 
-    const workedSoFar = currentWeekLogs.reduce((sum, log) => sum + (log.hours || 0), 0)
+    const workedSoFar = currentWeekLogs.reduce((sum, log) => sum + (log.is_holiday ? 0 : (log.hours || 0)), 0)
 
     const currentWeekday = dayOfWeek === 0 ? 5 : (dayOfWeek === 6 ? 5 : dayOfWeek)
     const expectedPace = (weeklyTarget / 5) * currentWeekday
@@ -1415,8 +1432,8 @@ export default function Hours() {
     const sevenDaysAgo = new Date(today)
     sevenDaysAgo.setDate(today.getDate() - 7)
 
-    // Filter only completed entries (have both start and end time)
-    const completedLogs = workLogs.filter(log => log['Start Time'] && log['End Time'])
+    // Filter completed entries and day offs
+    const completedLogs = workLogs.filter(log => log.is_holiday || (log['Start Time'] && log['End Time']))
     
     // Generate array of all 7 days and create map of logged days
     const all7Days = []
@@ -2059,7 +2076,7 @@ export default function Hours() {
                   userSelect: 'none'
                 }}
               >
-                🏖️ Holiday/Day Off
+                🌙 Day Off
               </label>
             </div>
 
@@ -3011,7 +3028,7 @@ export default function Hours() {
                   <th style={tableHeaderStyle}>Start Time</th>
                   <th style={tableHeaderStyle}>End Time</th>
                   <th style={tableHeaderStyle}>Adjustment</th>
-                  <th style={tableHeaderStyle}>Holiday</th>
+                  <th style={tableHeaderStyle}>Day Off</th>
                   <th style={tableHeaderStyle}>Total Hours</th>
                   <th style={tableHeaderStyle}>Actions</th>
                 </tr>
@@ -3126,7 +3143,7 @@ export default function Hours() {
                         <td style={tableCellStyle}>{log['End Time'] || '-'}</td>
                         <td style={tableCellStyle}>{log.adjustment || 0} hrs</td>
                         <td style={tableCellStyle}>
-                          {log.is_holiday ? '🏖️ Yes' : '-'}
+                          {log.is_holiday ? '🌙 Yes' : '-'}
                         </td>
                         <td style={tableCellStyle}>{parseFloat(log.hours || 0).toFixed(2)} hrs</td>
                         <td style={tableCellStyle}>
