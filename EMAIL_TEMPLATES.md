@@ -189,7 +189,7 @@ The other templates are helpful but not essential for the auth flow to work.
 ## Template 2: User Confirmation (Access Request Received)
 
 **Template Name:** `access_request_confirmation`  
-**Subject:** `Thank you for requesting access to Burnout IQ`  
+**Subject:** `✓ Your access request has been received`  
 **To Email:** `{{to_email}}`
 
 ### HTML Template:
@@ -219,16 +219,34 @@ The other templates are helpful but not essential for the auth flow to work.
           <!-- Content -->
           <tr>
             <td style="padding: 40px;">
-              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #1d1d1f;">
-                Thank you for your interest, {{to_name}}!
+              <!-- Success Badge -->
+              <div style="text-align: center; margin-bottom: 32px;">
+                <div style="display: inline-block; padding: 12px 24px; background-color: #d1fae5; border-radius: 50px; margin-bottom: 16px;">
+                  <span style="font-size: 18px; font-weight: 600; color: #065f46;">✓ Request Confirmed</span>
+                </div>
+              </div>
+              
+              <h2 style="margin: 0 0 20px; font-size: 24px; font-weight: 600; color: #1d1d1f; text-align: center;">
+                Thank you, {{to_name}}!
               </h2>
               
-              <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #1d1d1f;">
-                We've received your access request and will review it shortly. Here's what you submitted:
+              <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #1d1d1f; text-align: center;">
+                We've successfully received your access request for <strong>Burnout IQ</strong>. Our team will review your application and respond within <strong>24-48 hours</strong>.
               </p>
               
               <!-- Request Summary -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f7; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+                <tr>
+                  <td style="text-align: center; padding-bottom: 12px;">
+                    <span style="color: #6e6e73; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Your Submission Details</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-top: 12px; padding-bottom: 8px; border-top: 1px solid #e5e5e7;">
+                    <span style="color: #6e6e73; font-size: 14px;">Email:</span>
+                    <span style="color: #1d1d1f; font-size: 16px; font-weight: 600; margin-left: 8px;">{{user_email}}</span>
+                  </td>
+                </tr>
                 <tr>
                   <td style="padding-bottom: 8px;">
                     <span style="color: #6e6e73; font-size: 14px;">Position:</span>
@@ -249,22 +267,32 @@ The other templates are helpful but not essential for the auth flow to work.
                 </tr>
               </table>
               
-              <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #1d1d1f;">
-                We'll review your request and get back to you within <strong>24-48 hours</strong> with a decision. You'll receive an email notification once your access has been approved.
-              </p>
+              <!-- What Happens Next -->
+              <div style="margin-bottom: 32px; padding: 24px; background-color: #f0f9ff; border-left: 4px solid #06B6D4; border-radius: 8px;">
+                <h3 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #164e63;">
+                  📬 What Happens Next?
+                </h3>
+                <ol style="margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #155e75;">
+                  <li>Our team reviews your request (usually within 24 hours)</li>
+                  <li>You'll receive an approval email with login instructions</li>
+                  <li>Set up your password and start tracking your work hours</li>
+                  <li>Access powerful analytics and burnout risk insights</li>
+                </ol>
+              </div>
               
               <!-- Feature Preview -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%); border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
                 <tr>
                   <td>
-                    <h3 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #ffffff;">
-                      What's Next?
+                    <h3 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #ffffff;">
+                      While You Wait, Here's What You'll Get:
                     </h3>
-                    <p style="margin: 0 0 12px; font-size: 15px; line-height: 1.6; color: rgba(255,255,255,0.9);">
-                      ✓ Track your working hours with precision<br>
-                      ✓ Analyze burnout risk with comprehensive metrics<br>
-                      ✓ Compare with peers in your industry<br>
-                      ✓ Maintain sustainable work-life balance
+                    <p style="margin: 0; font-size: 15px; line-height: 1.8; color: rgba(255,255,255,0.95);">
+                      ⏱️ Precision hour tracking with smart analytics<br>
+                      📊 Real-time burnout risk assessment<br>
+                      👥 Anonymous peer benchmarking by role & industry<br>
+                      🎯 Personalized workload intensity insights<br>
+                      📈 Historical trends and weekly projections
                     </p>
                   </td>
                 </tr>
@@ -273,7 +301,7 @@ The other templates are helpful but not essential for the auth flow to work.
               <!-- Learn More Link -->
               <p style="margin: 0; font-size: 14px; color: #6e6e73; text-align: center;">
                 <a href="{{features_url}}" style="color: #4F46E5; text-decoration: none; font-weight: 500;">
-                  Learn more about our features →
+                  Explore all features →
                 </a>
               </p>
             </td>

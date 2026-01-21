@@ -19,6 +19,7 @@ export default function RequestAccess() {
   })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [submitted, setSubmitted] = useState(false)
 
   useEffect(() => {
     initializeEmailJS()
@@ -128,29 +129,184 @@ export default function RequestAccess() {
         console.log('Email notifications sent')
       })
 
-      setMessage('✓ Access request submitted successfully! We\'ll review your request and send you login credentials once approved.')
-      
-      // Reset form
-      setFormData({
-        email: '',
-        first_name: '',
-        last_name: '',
-        position: '',
-        company: '',
-        firm_type: '',
-        region: ''
-      })
-      
-      // Redirect to login after 4 seconds
-      setTimeout(() => {
-        router.push('/login')
-      }, 4000)
+      // Show success page instead of redirecting
+      setSubmitted(true)
 
     } catch (error) {
       console.error('Error:', error)
       setMessage(`Error: ${error.message}`)
       setLoading(false)
     }
+  }
+
+  // Show success page after submission
+  if (submitted) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f5f5f7',
+        padding: '40px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          maxWidth: '650px',
+          margin: '0 auto',
+          backgroundColor: 'white',
+          padding: '60px',
+          borderRadius: '20px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            backgroundColor: '#d1fae5',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 32px',
+            fontSize: '40px',
+            color: '#065f46'
+          }}>
+            ✓
+          </div>
+
+          <h1 style={{
+            fontSize: '36px',
+            fontWeight: '700',
+            margin: '0 0 16px 0',
+            color: '#1d1d1f',
+            letterSpacing: '-0.02em'
+          }}>
+            Request Confirmed!
+          </h1>
+
+          <p style={{
+            fontSize: '18px',
+            color: '#6e6e73',
+            margin: '0 0 32px 0',
+            lineHeight: 1.6
+          }}>
+            Thank you for your interest in <strong style={{ color: '#1d1d1f' }}>Burnout IQ</strong>. We've successfully received your access request.
+          </p>
+
+          <div style={{
+            backgroundColor: '#f0f9ff',
+            borderLeft: '4px solid #06B6D4',
+            borderRadius: '12px',
+            padding: '24px',
+            marginBottom: '32px',
+            textAlign: 'left'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#164e63',
+              margin: '0 0 16px 0'
+            }}>
+              📬 What Happens Next?
+            </h3>
+            <ol style={{
+              margin: 0,
+              paddingLeft: '20px',
+              fontSize: '15px',
+              lineHeight: 1.8,
+              color: '#155e75'
+            }}>
+              <li>Check your email for a confirmation message</li>
+              <li>Our team will review your request within <strong>24-48 hours</strong></li>
+              <li>You'll receive an approval email with login instructions</li>
+              <li>Follow the steps to set up your password and start tracking</li>
+            </ol>
+          </div>
+
+          <div style={{
+            backgroundColor: '#fef3c7',
+            borderLeft: '4px solid #f59e0b',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '32px',
+            textAlign: 'left'
+          }}>
+            <p style={{
+              margin: 0,
+              fontSize: '15px',
+              lineHeight: 1.6,
+              color: '#78350f'
+            }}>
+              <strong style={{ color: '#92400e' }}>📧 Check your inbox:</strong> We've sent a confirmation email. If you don't see it, check your spam folder.
+            </p>
+          </div>
+
+          <div style={{
+            background: 'linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)',
+            borderRadius: '12px',
+            padding: '28px',
+            marginBottom: '32px',
+            textAlign: 'left'
+          }}>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#ffffff',
+              margin: '0 0 16px 0'
+            }}>
+              While You Wait, Here's What You'll Get:
+            </h3>
+            <div style={{
+              fontSize: '15px',
+              lineHeight: 1.8,
+              color: 'rgba(255,255,255,0.95)'
+            }}>
+              ⏱️ Precision hour tracking with smart analytics<br/>
+              📊 Real-time burnout risk assessment<br/>
+              👥 Anonymous peer benchmarking by role & industry<br/>
+              🎯 Personalized workload intensity insights<br/>
+              📈 Historical trends and weekly projections
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <a
+              href="/landing"
+              style={{
+                display: 'inline-block',
+                padding: '14px 28px',
+                backgroundColor: '#4F46E5',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Explore Features
+            </a>
+            <a
+              href="/login"
+              style={{
+                display: 'inline-block',
+                padding: '14px 28px',
+                backgroundColor: 'transparent',
+                color: '#4F46E5',
+                textDecoration: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: '600',
+                border: '2px solid #4F46E5',
+                cursor: 'pointer'
+              }}
+            >
+              Already Have Access? Sign In
+            </a>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
