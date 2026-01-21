@@ -186,10 +186,10 @@ The other templates are helpful but not essential for the auth flow to work.
 
 ---
 
-## Template 2: User Confirmation (Access Request Received)
+## Template 2: Welcome/Approval Email (Access Approved)
 
-**Template Name:** `access_request_confirmation`  
-**Subject:** `✓ Your access request has been received`  
+**Template Name:** `access_approved`  
+**Subject:** `🎉 Welcome to Burnout IQ - Your access is approved!`  
 **To Email:** `{{to_email}}`
 
 ### HTML Template:
@@ -221,89 +221,138 @@ The other templates are helpful but not essential for the auth flow to work.
             <td style="padding: 40px;">
               <!-- Success Badge -->
               <div style="text-align: center; margin-bottom: 32px;">
-                <div style="display: inline-block; padding: 12px 24px; background-color: #d1fae5; border-radius: 50px; margin-bottom: 16px;">
-                  <span style="font-size: 18px; font-weight: 600; color: #065f46;">✓ Request Confirmed</span>
+                <div style="display: inline-block; padding: 12px 28px; background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%); border-radius: 50px; margin-bottom: 16px;">
+                  <span style="font-size: 18px; font-weight: 700; color: #ffffff;">🎉 Access Approved!</span>
                 </div>
               </div>
               
-              <h2 style="margin: 0 0 20px; font-size: 24px; font-weight: 600; color: #1d1d1f; text-align: center;">
-                Thank you, {{to_name}}!
+              <h2 style="margin: 0 0 20px; font-size: 32px; font-weight: 700; color: #1d1d1f; text-align: center;">
+                Welcome to Burnout IQ, {{to_name}}!
               </h2>
               
-              <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #1d1d1f; text-align: center;">
-                We've successfully received your access request for <strong>Burnout IQ</strong>. Our team will review your application and respond within <strong>24-48 hours</strong>.
+              <p style="margin: 0 0 32px; font-size: 17px; line-height: 1.6; color: #6e6e73; text-align: center;">
+                Great news! Your access request has been approved. You're now ready to start tracking your work hours and taking control of your work-life balance.
               </p>
               
-              <!-- Request Summary -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f7; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
+              <!-- Setup Instructions -->
+              <div style="margin-bottom: 32px; padding: 28px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
+                <h3 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #92400e;">
+                  🔐 Set Up Your Account (2 Minutes)
+                </h3>
+                <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #78350f;">
+                  Follow these simple steps to get started:
+                </p>
+                <ol style="margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #78350f;">
+                  <li><strong>Go to the login page</strong> by clicking the button below</li>
+                  <li><strong>Click "Forgot your password?"</strong> link</li>
+                  <li><strong>Enter your email:</strong> {{user_email}}</li>
+                  <li><strong>Check your email</strong> for the password reset link from Supabase</li>
+                  <li><strong>Create your password</strong> and you're in!</li>
+                </ol>
+              </div>
+              
+              <!-- Primary CTA -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
                 <tr>
-                  <td style="text-align: center; padding-bottom: 12px;">
-                    <span style="color: #6e6e73; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Your Submission Details</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 12px; padding-bottom: 8px; border-top: 1px solid #e5e5e7;">
-                    <span style="color: #6e6e73; font-size: 14px;">Email:</span>
-                    <span style="color: #1d1d1f; font-size: 16px; font-weight: 600; margin-left: 8px;">{{user_email}}</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-bottom: 8px;">
-                    <span style="color: #6e6e73; font-size: 14px;">Position:</span>
-                    <span style="color: #1d1d1f; font-size: 16px; font-weight: 600; margin-left: 8px;">{{position}}</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-bottom: 8px;">
-                    <span style="color: #6e6e73; font-size: 14px;">Company:</span>
-                    <span style="color: #1d1d1f; font-size: 16px; font-weight: 600; margin-left: 8px;">{{company}}</span>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <span style="color: #6e6e73; font-size: 14px;">Region:</span>
-                    <span style="color: #1d1d1f; font-size: 16px; font-weight: 600; margin-left: 8px;">{{region}}</span>
+                  <td align="center">
+                    <a href="{{login_url}}" style="display: inline-block; padding: 18px 40px; background-color: #4F46E5; color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 17px; font-weight: 600; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+                      Get Started - Set Up Password →
+                    </a>
                   </td>
                 </tr>
               </table>
               
-              <!-- What Happens Next -->
-              <div style="margin-bottom: 32px; padding: 24px; background-color: #f0f9ff; border-left: 4px solid #06B6D4; border-radius: 8px;">
-                <h3 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #164e63;">
-                  📬 What Happens Next?
-                </h3>
-                <ol style="margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #155e75;">
-                  <li>Our team reviews your request (usually within 24 hours)</li>
-                  <li>You'll receive an approval email with login instructions</li>
-                  <li>Set up your password and start tracking your work hours</li>
-                  <li>Access powerful analytics and burnout risk insights</li>
-                </ol>
-              </div>
+              <!-- Feature Overview -->
+              <h3 style="margin: 0 0 20px; font-size: 20px; font-weight: 600; color: #1d1d1f; text-align: center;">
+                What You Can Do Now:
+              </h3>
               
-              <!-- Feature Preview -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%); border-radius: 8px; padding: 24px; margin-bottom: 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
+                <tr>
+                  <td style="padding-bottom: 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="50" valign="top">
+                          <div style="width: 40px; height: 40px; background-color: #EEF2FF; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">⏱️</div>
+                        </td>
+                        <td style="padding-left: 16px;">
+                          <h4 style="margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #1d1d1f;">Track Your Hours</h4>
+                          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6e6e73;">Log daily work hours with smart rolling averages (L7D, L30D, L90D) and historical trends.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="50" valign="top">
+                          <div style="width: 40px; height: 40px; background-color: #ECFDF5; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">⚠️</div>
+                        </td>
+                        <td style="padding-left: 16px;">
+                          <h4 style="margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #1d1d1f;">Burnout Risk Assessment</h4>
+                          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6e6e73;">Get real-time burnout scoring based on weekly hours, late-night work, and recovery time.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding-bottom: 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="50" valign="top">
+                          <div style="width: 40px; height: 40px; background-color: #EFF6FF; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">📊</div>
+                        </td>
+                        <td style="padding-left: 16px;">
+                          <h4 style="margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #1d1d1f;">Advanced Analytics</h4>
+                          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6e6e73;">View load intensity index, weekly projections, streaks, and workload patterns.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
                 <tr>
                   <td>
-                    <h3 style="margin: 0 0 16px; font-size: 18px; font-weight: 600; color: #ffffff;">
-                      While You Wait, Here's What You'll Get:
-                    </h3>
-                    <p style="margin: 0; font-size: 15px; line-height: 1.8; color: rgba(255,255,255,0.95);">
-                      ⏱️ Precision hour tracking with smart analytics<br>
-                      📊 Real-time burnout risk assessment<br>
-                      👥 Anonymous peer benchmarking by role & industry<br>
-                      🎯 Personalized workload intensity insights<br>
-                      📈 Historical trends and weekly projections
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="50" valign="top">
+                          <div style="width: 40px; height: 40px; background-color: #FEF3C7; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">👥</div>
+                        </td>
+                        <td style="padding-left: 16px;">
+                          <h4 style="margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #1d1d1f;">Peer Comparisons</h4>
+                          <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6e6e73;">Anonymously compare your hours against Associates, VPs, and Partners in your region.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Quick Links -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f7; border-radius: 10px; padding: 24px; margin-bottom: 32px;">
+                <tr>
+                  <td>
+                    <h4 style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #1d1d1f;">Quick Links:</h4>
+                    <p style="margin: 0; font-size: 15px; color: #6e6e73;">
+                      <a href="{{dashboard_url}}" style="color: #4F46E5; text-decoration: none; font-weight: 500;">📊 Dashboard</a> • 
+                      <a href="{{hours_url}}" style="color: #4F46E5; text-decoration: none; font-weight: 500;">⏱️ Track Hours</a> • 
+                      <a href="{{features_url}}" style="color: #4F46E5; text-decoration: none; font-weight: 500;">✨ All Features</a>
                     </p>
                   </td>
                 </tr>
               </table>
               
-              <!-- Learn More Link -->
-              <p style="margin: 0; font-size: 14px; color: #6e6e73; text-align: center;">
-                <a href="{{features_url}}" style="color: #4F46E5; text-decoration: none; font-weight: 500;">
-                  Explore all features →
-                </a>
-              </p>
+              <!-- Support Info -->
+              <div style="padding: 20px; background-color: #f0f9ff; border-left: 4px solid #06B6D4; border-radius: 8px;">
+                <p style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #164e63;">
+                  Need help getting started?
+                </p>
+                <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #155e75;">
+                  If you have any issues setting up your password or accessing your account, contact us at <a href="mailto:support@burnoutiq.com" style="color: #0891b2; text-decoration: none; font-weight: 500;">support@burnoutiq.com</a>
+                </p>
+              </div>
             </td>
           </tr>
           
