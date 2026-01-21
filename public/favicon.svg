@@ -1,0 +1,10 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="32" cy="32" r="32" fill="#4F46E5"/>
+  
+  <!-- Brain icon with pulse -->
+  <path d="M32 16C26.5 16 22 20.5 22 26C22 28 22.5 29.8 23.5 31.3C22.6 32.5 22 34 22 35.5C22 38.5 24 41 26.5 42C27 44.5 29 46.5 31.5 47C32 47.2 32.5 47.2 33 47.2C35.5 47.2 37.5 45.7 38.5 43.5C41 42.5 43 40 43 37C43 35.5 42.5 34.2 41.5 33C42.5 31.5 43 29.8 43 28C43 22.5 38.5 18 33 18C32.7 18 32.3 18 32 18V16Z" fill="white" opacity="0.9"/>
+  
+  <!-- Pulse line -->
+  <path d="M12 32H18L22 28L26 36L30 24L34 40L38 32L42 32H52" stroke="#06B6D4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
