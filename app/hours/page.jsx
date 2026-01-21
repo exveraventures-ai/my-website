@@ -1729,7 +1729,7 @@ export default function Hours() {
         return logDate.toDateString() === date.toDateString()
       })
 
-      const actualHours = log ? parseFloat(log.hours || 0) : 0
+      const actualHours = log ? (log.is_holiday ? 0 : parseFloat(log.hours || 0)) : 0
       const isPast = date <= today
 
       return {
@@ -1805,7 +1805,7 @@ export default function Hours() {
 
       return {
         date: formatDateForPeriod(log.Date, timePeriod),
-        hours: parseFloat(log.hours || 0).toFixed(1),
+        hours: log.is_holiday ? '0.0' : parseFloat(log.hours || 0).toFixed(1),
         l7dTotal: l7dTotal,
         weeklyProjection: weeklyProjection ? weeklyProjection.toFixed(1) : null,
         fullDate: log.Date
