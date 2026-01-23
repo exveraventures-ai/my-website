@@ -93,7 +93,9 @@ export default function SetPassword() {
     }
 
     try {
-      // Try to sign up the user with the password
+      console.log('Attempting to sign up user with email:', email)
+      
+      // Try to sign up the user with the password (disable email confirmation)
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email,
         password: password,
@@ -105,7 +107,10 @@ export default function SetPassword() {
         }
       })
 
+      console.log('Sign up response:', { data: signUpData, error: signUpError })
+
       if (signUpError) {
+        console.error('Sign up error:', signUpError)
         // If user already exists in auth, they should use login/forgot password
         if (signUpError.message.includes('already registered') || signUpError.message.includes('already been registered')) {
           setError('An account already exists with this email. Please use the login page. If you forgot your password, use "Forgot Password".')
@@ -116,7 +121,16 @@ export default function SetPassword() {
         }
       }
 
-      console.log('Sign up successful:', signUpData)
+      // Check if email confirmation is required
+      if (signUpData?.user && !signUpData.user.confirmed_at && signUpData.user.confirmation_sent_at) {
+        console.warn('Email confirmation required')
+        setMessage('⚠️ Please check your email to confirm your account before logging in.')
+        setIsRedirecting(false)
+        setLoading(false)
+        return
+      }
+
+      console.log('Sign up successful! User:', signUpData?.user)
       setMessage('✓ Password set successfully! Redirecting to login...')
       setIsRedirecting(true)
       
