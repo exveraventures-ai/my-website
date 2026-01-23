@@ -13,6 +13,7 @@ export default function SetPassword() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [step, setStep] = useState(1) // 1: Enter email, 2: Set password
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   useEffect(() => {
     document.title = 'Set Password - Burnout IQ'
@@ -122,6 +123,7 @@ export default function SetPassword() {
 
       console.log('Sign up successful:', signUpData)
       setMessage('✓ Password set successfully! Redirecting to login...')
+      setIsRedirecting(true)
       
       // Sign out and redirect to login
       setTimeout(async () => {
@@ -296,7 +298,7 @@ export default function SetPassword() {
                 setError('')
                 setMessage('')
               }}
-              disabled={loading || !!message}
+              disabled={loading || isRedirecting}
               style={{
                 width: '100%',
                 padding: '16px',
@@ -306,9 +308,9 @@ export default function SetPassword() {
                 borderRadius: '12px',
                 fontSize: '17px',
                 fontWeight: '600',
-                cursor: (loading || message) ? 'not-allowed' : 'pointer',
+                cursor: (loading || isRedirecting) ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit',
-                opacity: (loading || message) ? 0.6 : 1
+                opacity: (loading || isRedirecting) ? 0.6 : 1
               }}
             >
               Change Email
