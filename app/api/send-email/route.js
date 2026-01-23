@@ -44,7 +44,7 @@ export async function POST(request) {
     }
 
     const { data: emailData, error } = await resend.emails.send({
-      from: 'Burnout IQ <onboarding@resend.dev>', // Use your verified domain later
+      from: 'Burnout IQ <noreply@burnoutiq.com>',
       to: [to],
       subject: subject,
       html: emailContent,
