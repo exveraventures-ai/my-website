@@ -11,6 +11,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [resetEmailSent, setResetEmailSent] = useState(false)
 
   useEffect(() => {
     document.title = 'Burnout IQ - Login'
@@ -31,12 +33,38 @@ export default function Login() {
     }
   }
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage('')
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login?reset=true`,
+      })
+
+      if (error) throw error
+
+      setResetEmailSent(true)
+      setMessage('✓ Password reset email sent! Check your inbox.')
+    } catch (error) {
+      setMessage(`Error: ${error.message}`)
+    }
+
+    setLoading(false)
+  }
+
   const handleAuth = async (e) => {
     e.preventDefault()
     setLoading(true)
     setMessage('')
 
     try {
+      if (isForgotPassword) {
+        await handleForgotPassword(e)
+        return
+      }
+      
       if (isSignUp) {
         // Redirect to request access page instead of signing up directly
         router.push('/request-access')
@@ -128,7 +156,7 @@ export default function Login() {
             color: '#6e6e73',
             margin: 0
           }}>
-            {isSignUp ? 'Request access to continue' : 'Sign in to continue'}
+            {isForgotPassword ? 'Reset your password' : isSignUp ? 'Request access to continue' : 'Sign in to continue'}
           </p>
         </div>
 
@@ -145,22 +173,51 @@ export default function Login() {
             />
           </div>
 
-          <div style={{ marginBottom: '30px' }}>
-            <label style={labelStyle}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              style={inputStyle}
-              placeholder="••••••••"
-            />
-          </div>
+          {!isForgotPassword && (
+            <div style={{ marginBottom: '10px' }}>
+              <label style={labelStyle}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                style={inputStyle}
+                placeholder="••••••••"
+              />
+            </div>
+          )}
+
+          {!isForgotPassword && !isSignUp && (
+            <div style={{ marginBottom: '30px', textAlign: 'right' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(true)
+                  setMessage('')
+                  setResetEmailSent(false)
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#4F46E5',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  padding: 0
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
+          {isForgotPassword && <div style={{ marginBottom: '30px' }} />}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || resetEmailSent}
             style={{
               width: '100%',
               padding: '16px',
@@ -170,12 +227,12 @@ export default function Login() {
               borderRadius: '12px',
               fontSize: '17px',
               fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              cursor: (loading || resetEmailSent) ? 'not-allowed' : 'pointer',
               fontFamily: 'inherit',
-              opacity: loading ? 0.6 : 1
+              opacity: (loading || resetEmailSent) ? 0.6 : 1
             }}
           >
-            {loading ? 'Please wait...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading ? 'Please wait...' : isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
         </form>
 
@@ -195,27 +252,48 @@ export default function Login() {
           marginTop: '30px',
           textAlign: 'center'
         }}>
-          <button
-            onClick={() => {
-              if (isSignUp) {
-                setIsSignUp(false)
+          {isForgotPassword ? (
+            <button
+              onClick={() => {
+                setIsForgotPassword(false)
                 setMessage('')
-              } else {
-                router.push('/request-access')
-              }
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#4F46E5',
-              fontSize: '15px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              fontFamily: 'inherit'
-            }}
-          >
-            {isSignUp ? 'Already have an account? Sign in' : "Don't have access? Request access"}
-          </button>
+                setResetEmailSent(false)
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#4F46E5',
+                fontSize: '15px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              ← Back to sign in
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (isSignUp) {
+                  setIsSignUp(false)
+                  setMessage('')
+                } else {
+                  router.push('/request-access')
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#4F46E5',
+                fontSize: '15px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have access? Request access"}
+            </button>
+          )}
         </div>
       </div>
     </div>
