@@ -58,13 +58,8 @@ export default function SetPassword() {
       }
 
       if (accessRequest.status === 'approved') {
-        // Check if user already has an auth account
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-        console.log('Current auth user:', user, 'Error:', authError)
-        
         // Account is approved, move to password step
         setStep(2)
-        setMessage('✓ Account verified! Please set your password below.')
       } else {
         setError('Invalid account status. Please contact support.')
         setLoading(false)
@@ -250,7 +245,7 @@ export default function SetPassword() {
                 minLength={6}
                 style={inputStyle}
                 placeholder="••••••••"
-                disabled={loading || !!message}
+                disabled={loading || isRedirecting}
               />
             </div>
 
@@ -264,13 +259,13 @@ export default function SetPassword() {
                 minLength={6}
                 style={inputStyle}
                 placeholder="••••••••"
-                disabled={loading || !!message}
+                disabled={loading || isRedirecting}
               />
             </div>
 
             <button
               type="submit"
-              disabled={loading || !!message}
+              disabled={loading || isRedirecting}
               style={{
                 width: '100%',
                 padding: '16px',
@@ -316,7 +311,7 @@ export default function SetPassword() {
               Change Email
             </button>
 
-            {message && (
+            {message && isRedirecting && (
               <p style={{
                 marginTop: '20px',
                 textAlign: 'center',
