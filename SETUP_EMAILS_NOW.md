@@ -1,4 +1,4 @@
-# Get Emails Working in 2 Minutes
+the # Get Emails Working in 2 Minutes
 
 ## The Problem:
 EmailJS doesn't allow domain whitelisting on the free tier, so emails work on localhost but not on your production site.

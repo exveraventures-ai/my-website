@@ -39,6 +39,12 @@ export async function POST(request) {
       subject = '🎉 Welcome to Burnout IQ - Your access is approved!';
       emailContent = generateApprovalHTML(data);
       console.log('Sending approval email to:', to);
+    } else if (type === 'pro_request') {
+      // Pro access request notification to admin
+      to = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'exveraventures@gmail.com';
+      subject = `💎 Pro Access Request: ${data.first_name} ${data.last_name}`;
+      emailContent = generateProRequestHTML(data);
+      console.log('Sending pro request notification to:', to);
     } else {
       return NextResponse.json({ error: 'Invalid email type' }, { status: 400 });
     }
@@ -180,6 +186,113 @@ function generateApprovalHTML(data) {
                       </td>
                     </tr>
                   </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+function generateProRequestHTML(data) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Pro Access Request</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f7;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f7; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
+              <!-- Header -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); padding: 40px 40px 30px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 42px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.02em;">
+                    Burnout <span style="color: #ffffff; font-weight: 800;">IQ</span>
+                  </h1>
+                  <p style="margin: 12px 0 0; font-size: 20px; color: #1d1d1f; font-weight: 600;">
+                    💎 Pro Access Request
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Content -->
+              <tr>
+                <td style="padding: 40px;">
+                  <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #1d1d1f;">
+                    New Pro Feature Request
+                  </h2>
+                  
+                  <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #1d1d1f;">
+                    A user has requested access to Burnout IQ Pro features:
+                  </p>
+
+                  <!-- User Details -->
+                  <div style="background-color: #f5f5f7; border-radius: 12px; padding: 24px; margin-bottom: 30px;">
+                    <table width="100%" cellpadding="8" cellspacing="0">
+                      <tr>
+                        <td style="font-size: 14px; font-weight: 600; color: #6e6e73; width: 120px;">Name:</td>
+                        <td style="font-size: 15px; color: #1d1d1f; font-weight: 500;">\${data.first_name} \${data.last_name}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 14px; font-weight: 600; color: #6e6e73;">Email:</td>
+                        <td style="font-size: 15px; color: #1d1d1f;">\${data.email}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 14px; font-weight: 600; color: #6e6e73;">Company:</td>
+                        <td style="font-size: 15px; color: #1d1d1f;">\${data.company || 'Not provided'}</td>
+                      </tr>
+                      <tr>
+                        <td style="font-size: 14px; font-weight: 600; color: #6e6e73;">Position:</td>
+                        <td style="font-size: 15px; color: #1d1d1f;">\${data.position || 'Not provided'}</td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <!-- Pro Features Info -->
+                  <div style="margin-bottom: 32px; padding: 20px; background-color: #fff9e6; border-left: 4px solid #FFD700; border-radius: 8px;">
+                    <h3 style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #856404;">📊 Requested Features</h3>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8; color: #856404;">
+                      <li>Overall Burnout Risk Score (0-100)</li>
+                      <li>Weekly Workload Average (Rolling 4-week)</li>
+                      <li>Circadian Disruption Index</li>
+                      <li>Recovery Window Status</li>
+                      <li>Load Intensity Index</li>
+                      <li>High-Intensity Streak</li>
+                      <li>Recovery Days Counter</li>
+                      <li>Advanced Heat Maps & Analytics</li>
+                    </ul>
+                  </div>
+
+                  <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #6e6e73;">
+                    Review this request in the admin panel to approve or decline Pro access.
+                  </p>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                    <tr>
+                      <td align="center">
+                        <a href="\${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.burnoutiq.com'}/admin" style="display: inline-block; padding: 16px 32px; background-color: #FFD700; color: #1d1d1f; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 700;">
+                          Review in Admin Panel →
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Divider -->
+                  <div style="border-top: 1px solid #e5e5e5; margin: 30px 0;"></div>
+
+                  <!-- Footer -->
+                  <p style="margin: 0; font-size: 13px; color: #86868b; text-align: center; line-height: 1.6;">
+                    This is an automated notification from Burnout IQ<br>
+                    Track demand and approve requests to grant Pro access
+                  </p>
                 </td>
               </tr>
             </table>

@@ -2286,6 +2286,24 @@ export default function Hours() {
               <div style={{ fontSize: '15px', lineHeight: '1.6', marginBottom: '12px' }}>
                 {isPro ? burnout.urgency : 'Upgrade to Pro to see your burnout risk assessment'}
               </div>
+              {!isPro && (
+                <button
+                  onClick={() => router.push('/request-pro')}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#FFD700',
+                    color: '#1d1d1f',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    fontSize: '15px',
+                    marginTop: '8px'
+                  }}
+                >
+                  ✨ Request Pro Access
+                </button>
+              )}
               {isPro && burnout.breakdown && (
                 <div style={{ fontSize: '13px', opacity: 0.9, marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.3)' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>

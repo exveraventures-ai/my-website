@@ -14,12 +14,15 @@ export default function Admin() {
   const [filter, setFilter] = useState('pending') // pending, approved, rejected, all
   const [allUsers, setAllUsers] = useState([])
   const [showUsers, setShowUsers] = useState(false)
+  const [proRequests, setProRequests] = useState([])
+  const [showProRequests, setShowProRequests] = useState(false)
 
   useEffect(() => {
     document.title = 'Burnout IQ - Admin'
     initializeEmailJS()
     checkAdminAndLoad()
     loadAllUsers()
+    loadProRequests()
   }, [])
 
   useEffect(() => {
@@ -98,6 +101,88 @@ export default function Admin() {
     } catch (error) {
       console.error('Error loading users:', error)
       setAllUsers([])
+    }
+  }
+
+  const loadProRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pro_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      
+      setProRequests(data || [])
+    } catch (error) {
+      console.error('Error loading pro requests:', error)
+      setProRequests([])
+    }
+  }
+
+  const handleApprovePro = async (requestId, userId, userEmail) => {
+    if (!confirm(`Approve Pro access for ${userEmail}?`)) {
+      return
+    }
+
+    try {
+      // Update user to pro status
+      const { error: userError } = await supabase
+        .from('users')
+        .update({ is_pro: true })
+        .eq('id', userId)
+
+      if (userError) throw userError
+
+      // Update pro request status
+      const { error: requestError } = await supabase
+        .from('pro_requests')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: userProfile.id
+        })
+        .eq('id', requestId)
+
+      if (requestError) throw requestError
+
+      alert(`✓ Pro access approved for ${userEmail}!`)
+      
+      // Reload data
+      loadProRequests()
+      loadAllUsers()
+      
+    } catch (error) {
+      console.error('Error approving pro request:', error)
+      alert('Error approving pro request: ' + error.message)
+    }
+  }
+
+  const handleRejectPro = async (requestId, userEmail) => {
+    if (!confirm(`Reject Pro access request for ${userEmail}?`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('pro_requests')
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: userProfile.id
+        })
+        .eq('id', requestId)
+
+      if (error) throw error
+
+      alert(`Pro access request rejected for ${userEmail}`)
+      
+      // Reload data
+      loadProRequests()
+      
+    } catch (error) {
+      console.error('Error rejecting pro request:', error)
+      alert('Error rejecting pro request: ' + error.message)
     }
   }
 
@@ -536,6 +621,127 @@ export default function Admin() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Pro Requests Section */}
+        <div style={{ marginTop: '50px' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: '600',
+              margin: 0,
+              color: '#1d1d1f'
+            }}>
+              💎 Pro Feature Requests
+            </h2>
+            <button
+              onClick={() => setShowProRequests(!showProRequests)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: showProRequests ? '#FF3B30' : '#FFD700',
+                color: showProRequests ? 'white' : '#1d1d1f',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '15px'
+              }}
+            >
+              {showProRequests ? 'Hide Requests' : `Show Pro Requests (${proRequests.filter(r => r.status === 'pending').length} pending)`}
+            </button>
+          </div>
+
+          {showProRequests && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '30px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.06)'
+            }}>
+              {proRequests.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#6e6e73', fontSize: '17px', padding: '40px' }}>
+                  No Pro feature requests yet.
+                </p>
+              ) : (
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {proRequests.map(request => (
+                    <div key={request.id} style={{
+                      border: '2px solid #f5f5f7',
+                      borderRadius: '12px',
+                      padding: '24px',
+                      backgroundColor: request.status === 'pending' ? '#fffbf0' : '#f5f5f7'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div>
+                          <h3 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: '600', color: '#1d1d1f' }}>
+                            {request.first_name} {request.last_name}
+                          </h3>
+                          <p style={{ margin: '0 0 4px 0', fontSize: '15px', color: '#6e6e73' }}>{request.email}</p>
+                          <p style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#6e6e73' }}>
+                            {request.company} • {request.position}
+                          </p>
+                          <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: '#86868b' }}>
+                            Requested: {new Date(request.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span style={{
+                          padding: '6px 14px',
+                          backgroundColor: request.status === 'pending' ? '#FFC107' : request.status === 'approved' ? '#34C759' : '#FF3B30',
+                          color: 'white',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          textTransform: 'uppercase'
+                        }}>
+                          {request.status}
+                        </span>
+                      </div>
+
+                      {request.status === 'pending' && (
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                          <button
+                            onClick={() => handleApprovePro(request.id, request.user_id, request.email)}
+                            style={{
+                              padding: '10px 24px',
+                              backgroundColor: '#FFD700',
+                              color: '#1d1d1f',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontWeight: '700',
+                              fontSize: '15px'
+                            }}
+                          >
+                            ✓ Approve Pro Access
+                          </button>
+                          <button
+                            onClick={() => handleRejectPro(request.id, request.email)}
+                            style={{
+                              padding: '10px 24px',
+                              backgroundColor: '#FF3B30',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              fontSize: '15px'
+                            }}
+                          >
+                            ✗ Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
