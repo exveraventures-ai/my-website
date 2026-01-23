@@ -275,7 +275,9 @@ export default function Admin() {
 
   const handleApprove = async (requestId, requestData) => {
     try {
-      // Step 1: Update access request status
+      // Step 1: Update access request status to approved
+      // NOTE: We do NOT create the users table entry here anymore
+      // It will be created automatically when the user signs up via /set-password
       const { error: updateError } = await supabase
         .from('access_requests')
         .update({
@@ -287,51 +289,14 @@ export default function Admin() {
 
       if (updateError) throw updateError
 
-      // Step 2: Create or update user profile with approval
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', requestData.email)
-        .single()
-
-      if (existingUser) {
-        // Update existing user
-        await supabase
-          .from('users')
-          .update({
-            is_approved: true,
-            first_name: requestData.first_name,
-            last_name: requestData.last_name,
-            position: requestData.position,
-            company: requestData.company,
-            firm_type: requestData.firm_type,
-            region: requestData.region
-          })
-          .eq('id', existingUser.id)
-      } else {
-        // Create new user profile
-        await supabase
-          .from('users')
-          .insert([{
-            email: requestData.email,
-            is_approved: true,
-            first_name: requestData.first_name,
-            last_name: requestData.last_name,
-            position: requestData.position,
-            company: requestData.company,
-            firm_type: requestData.firm_type,
-            region: requestData.region
-          }])
-      }
-
-      // Step 3: Send welcome/invitation email with setup instructions
+      // Step 2: Send welcome/invitation email with setup instructions
       const emailResult = await sendApprovalEmail(requestData)
       
       if (!emailResult.success) {
         console.error('Failed to send approval email:', emailResult.error)
-        alert(`⚠️ Request approved and profile created, but failed to send invitation email.\n\nPlease manually email ${requestData.email} with this link:\n${window.location.origin}/set-password`)
+        alert(`⚠️ Request approved, but failed to send invitation email.\n\nPlease manually email ${requestData.email} with this link:\n${window.location.origin}/set-password`)
       } else {
-        alert(`✓ Request approved!\n\nWelcome email sent to: ${requestData.email}\n\nThe user will receive instructions to set up their password at:\n${window.location.origin}/set-password`)
+        alert(`✓ Request approved!\n\nWelcome email sent to: ${requestData.email}\n\nThe user will set up their account at:\n${window.location.origin}/set-password`)
       }
 
       // Reload requests

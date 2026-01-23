@@ -138,6 +138,45 @@ export default function SetPassword() {
       }
 
       console.log('Sign up successful! User:', signUpData?.user)
+      
+      // Create the user profile in users table with the correct auth ID
+      if (signUpData?.user) {
+        console.log('Creating user profile with auth ID:', signUpData.user.id)
+        
+        // Get the access request data
+        const { data: accessRequest } = await supabase
+          .from('access_requests')
+          .select('*')
+          .eq('email', email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        
+        if (accessRequest) {
+          // Create user profile with the auth user's ID
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert([{
+              id: signUpData.user.id, // Use the auth user's ID
+              email: email,
+              is_approved: true,
+              first_name: accessRequest.first_name,
+              last_name: accessRequest.last_name,
+              position: accessRequest.position,
+              company: accessRequest.company,
+              firm_type: accessRequest.firm_type,
+              region: accessRequest.region
+            }])
+          
+          if (profileError) {
+            console.error('Error creating user profile:', profileError)
+            // Continue anyway - they can still log in
+          } else {
+            console.log('User profile created successfully')
+          }
+        }
+      }
+      
       setMessage('✓ Password set successfully! Redirecting to login...')
       setIsRedirecting(true)
       
