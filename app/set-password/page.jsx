@@ -280,13 +280,13 @@ export default function SetPassword() {
                 borderRadius: '12px',
                 fontSize: '17px',
                 fontWeight: '600',
-                cursor: (loading || message) ? 'not-allowed' : 'pointer',
+                cursor: (loading || isRedirecting) ? 'not-allowed' : 'pointer',
                 fontFamily: 'inherit',
-                opacity: (loading || message) ? 0.6 : 1,
+                opacity: (loading || isRedirecting) ? 0.6 : 1,
                 marginBottom: '12px'
               }}
             >
-              {loading ? 'Setting Password...' : message ? 'Redirecting...' : 'Set Password & Continue'}
+              {loading ? 'Setting Password...' : isRedirecting ? 'Redirecting...' : 'Set Password & Continue'}
             </button>
 
             <button
