@@ -18,12 +18,11 @@ export default function Login() {
     document.title = 'Burnout IQ - Login'
     checkUser()
     
-    // Check for password reset flow
+    // Check for messages from URL
     const urlParams = new URLSearchParams(window.location.search)
-    const resetParam = urlParams.get('reset')
     const messageParam = urlParams.get('message')
     
-    if (resetParam === 'true') {
+    if (messageParam === 'password-reset-success') {
       setMessage('✓ Password reset successful! You can now sign in with your new password.')
     } else if (messageParam === 'pending') {
       setMessage('⚠️ Your account is pending approval. Please wait for admin approval to access the platform.')
@@ -45,8 +44,8 @@ export default function Login() {
     try {
       // Use the production URL
       const redirectUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000/login?reset=true'
-        : 'https://www.burnoutiq.com/login?reset=true'
+        ? 'http://localhost:3000/reset-password'
+        : 'https://www.burnoutiq.com/reset-password'
         
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
@@ -55,7 +54,7 @@ export default function Login() {
       if (error) throw error
 
       setResetEmailSent(true)
-      setMessage('✓ Password reset email sent! Check your inbox.')
+      setMessage('✓ Password reset email sent! Check your inbox and click the link to reset your password.')
     } catch (error) {
       setMessage(`Error: ${error.message}`)
     }
