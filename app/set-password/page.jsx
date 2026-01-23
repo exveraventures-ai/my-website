@@ -25,56 +25,50 @@ export default function SetPassword() {
     setMessage('')
 
     try {
-      // Check if user has an approved account in users table
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('is_approved')
+      console.log('Checking email:', email)
+      
+      // Check access_requests table first (this is public readable)
+      const { data: accessRequest, error: accessError } = await supabase
+        .from('access_requests')
+        .select('status')
         .eq('email', email)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single()
 
-      // If no profile found, check access_requests table
-      if (!profile || profileError) {
-        const { data: accessRequest } = await supabase
-          .from('access_requests')
-          .select('status')
-          .eq('email', email)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+      console.log('Access request:', accessRequest, 'Error:', accessError)
 
-        if (!accessRequest) {
-          setError('No account found with this email. Please request access first.')
-          setLoading(false)
-          return
-        }
-
-        if (accessRequest.status === 'pending') {
-          setError('Your access request is pending approval. Please wait for admin approval.')
-          setLoading(false)
-          return
-        }
-
-        if (accessRequest.status === 'rejected') {
-          setError('Your access request was declined. Please contact support.')
-          setLoading(false)
-          return
-        }
-
-        // If approved in access_requests but no profile, something went wrong
-        setError('Your access was approved but profile setup is incomplete. Please contact support.')
+      if (!accessRequest) {
+        setError('No account found with this email. Please request access first at the Request Access page.')
         setLoading(false)
         return
       }
 
-      if (!profile.is_approved) {
-        setError('Your account is pending approval. Please wait for admin approval.')
+      if (accessRequest.status === 'pending') {
+        setError('Your access request is pending approval. Please wait for admin approval.')
         setLoading(false)
         return
       }
 
-      // Account is approved, move to password step
-      setStep(2)
-      setMessage('✓ Account verified! Please set your password below.')
+      if (accessRequest.status === 'rejected') {
+        setError('Your access request was declined. Please contact support.')
+        setLoading(false)
+        return
+      }
+
+      if (accessRequest.status === 'approved') {
+        // Check if user already has an auth account
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        console.log('Current auth user:', user, 'Error:', authError)
+        
+        // Account is approved, move to password step
+        setStep(2)
+        setMessage('✓ Account verified! Please set your password below.')
+      } else {
+        setError('Invalid account status. Please contact support.')
+        setLoading(false)
+        return
+      }
     } catch (error) {
       console.error('Error checking email:', error)
       setError(`Error: ${error.message}`)
