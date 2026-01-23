@@ -42,7 +42,37 @@ export default function Login() {
     setMessage('')
 
     try {
-      // Use the production URL
+      // First check if user has an approved account
+      const { data: profile } = await supabase
+        .from('users')
+        .select('is_approved')
+        .eq('email', email)
+        .single()
+
+      if (!profile) {
+        // No profile exists - check if they have a pending request
+        const { data: accessRequest } = await supabase
+          .from('access_requests')
+          .select('status')
+          .eq('email', email)
+          .single()
+
+        if (accessRequest && accessRequest.status === 'pending') {
+          setMessage('⚠️ Your access request is pending approval. You cannot reset your password until approved.')
+          setLoading(false)
+          return
+        } else {
+          setMessage('⚠️ You do not have access to Burnout IQ. Please request access first.')
+          setLoading(false)
+          return
+        }
+      } else if (!profile.is_approved) {
+        setMessage('⚠️ Your account is pending approval. You cannot reset your password until approved.')
+        setLoading(false)
+        return
+      }
+
+      // User is approved, send reset email
       const redirectUrl = window.location.hostname === 'localhost' 
         ? 'http://localhost:3000/reset-password'
         : 'https://www.burnoutiq.com/reset-password'
