@@ -122,10 +122,17 @@ export default function SetPassword() {
       }
 
       // Check if email confirmation is required
-      if (signUpData?.user && !signUpData.user.confirmed_at && signUpData.user.confirmation_sent_at) {
-        console.warn('Email confirmation required')
-        setMessage('⚠️ Please check your email to confirm your account before logging in.')
-        setIsRedirecting(false)
+      if (signUpData?.user && !signUpData.user.confirmed_at) {
+        console.warn('Email confirmation required - user needs to confirm email')
+        setError('⚠️ Email confirmation is required. Please check your email inbox for a confirmation link, or contact your administrator to manually confirm your account.')
+        setLoading(false)
+        return
+      }
+      
+      // Check if user already exists (signup returns user but they're already registered)
+      if (signUpData?.user && signUpData.user.identities && signUpData.user.identities.length === 0) {
+        console.warn('User already exists')
+        setError('This email is already registered. Please use the login page. If you forgot your password, use "Forgot Password".')
         setLoading(false)
         return
       }
