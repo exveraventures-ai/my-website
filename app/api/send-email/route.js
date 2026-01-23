@@ -164,19 +164,18 @@ function generateApprovalHTML(data) {
                   </p>
                   <div style="margin-bottom: 32px; padding: 28px; background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px;">
                     <h3 style="margin: 0 0 16px; font-size: 20px; font-weight: 600; color: #92400e;">🔐 Set Up Your Account</h3>
-                    <ol style="margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #78350f;">
-                      <li>Go to the login page by clicking below</li>
-                      <li>Click "Forgot your password?"</li>
-                      <li>Enter your email: ${data.email}</li>
-                      <li>Check your email for the password reset link</li>
-                      <li>Create your password and log in!</li>
-                    </ol>
+                    <p style="margin: 0 0 12px; font-size: 15px; line-height: 1.8; color: #78350f;">
+                      Click the button below to set up your password and access your account:
+                    </p>
+                    <p style="margin: 0; padding: 12px; background-color: #fff; border-radius: 6px; font-size: 14px; color: #92400e; font-weight: 600;">
+                      Your email: ${data.email}
+                    </p>
                   </div>
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 32px;">
                     <tr>
                       <td align="center">
-                        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://your-domain.vercel.app'}/login" style="display: inline-block; padding: 18px 40px; background-color: #4F46E5; color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 17px; font-weight: 600;">
-                          Get Started - Set Up Password →
+                        <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.burnoutiq.com'}/set-password" style="display: inline-block; padding: 18px 40px; background-color: #4F46E5; color: #ffffff; text-decoration: none; border-radius: 10px; font-size: 17px; font-weight: 600;">
+                          Set Up Your Password →
                         </a>
                       </td>
                     </tr>

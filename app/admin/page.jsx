@@ -12,11 +12,14 @@ export default function Admin() {
   const [loading, setLoading] = useState(true)
   const [userProfile, setUserProfile] = useState(null)
   const [filter, setFilter] = useState('pending') // pending, approved, rejected, all
+  const [allUsers, setAllUsers] = useState([])
+  const [showUsers, setShowUsers] = useState(false)
 
   useEffect(() => {
     document.title = 'Burnout IQ - Admin'
     initializeEmailJS()
     checkAdminAndLoad()
+    loadAllUsers()
   }, [])
 
   useEffect(() => {
@@ -80,6 +83,59 @@ export default function Admin() {
     }
 
     setLoading(false)
+  }
+
+  const loadAllUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      
+      setAllUsers(data || [])
+    } catch (error) {
+      console.error('Error loading users:', error)
+      setAllUsers([])
+    }
+  }
+
+  const handleDeleteUser = async (userId, userEmail) => {
+    if (!confirm(`Are you sure you want to delete ${userEmail}?\n\nThis will:\n- Delete their user profile\n- Delete all their work logs\n- Delete their auth account\n\nThis action cannot be undone!`)) {
+      return
+    }
+
+    try {
+      // Delete user profile
+      const { error: profileError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId)
+
+      if (profileError) throw profileError
+
+      // Delete work logs
+      await supabase
+        .from('Work_Logs')
+        .delete()
+        .eq('user_id', userId)
+
+      // Delete access requests
+      await supabase
+        .from('access_requests')
+        .delete()
+        .eq('email', userEmail)
+
+      alert(`✓ User ${userEmail} has been deleted successfully.`)
+      
+      // Reload users
+      loadAllUsers()
+      
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert('Error deleting user: ' + error.message)
+    }
   }
 
   const loadAccessRequests = async () => {
@@ -188,9 +244,9 @@ export default function Admin() {
       
       if (!emailResult.success) {
         console.error('Failed to send approval email:', emailResult.error)
-        alert(`⚠️ Request approved and profile created, but failed to send invitation email.\n\nPlease manually email ${requestData.email} with login instructions.`)
+        alert(`⚠️ Request approved and profile created, but failed to send invitation email.\n\nPlease manually email ${requestData.email} with this link:\n${window.location.origin}/set-password`)
       } else {
-        alert(`✓ Request approved!\n\nInvitation email sent to: ${requestData.email}\n\nThe user should visit the login page and click "Forgot Password" to set up their account.`)
+        alert(`✓ Request approved!\n\nWelcome email sent to: ${requestData.email}\n\nThe user will receive instructions to set up their password at:\n${window.location.origin}/set-password`)
       }
 
       // Reload requests
@@ -376,6 +432,112 @@ export default function Admin() {
                   filter={filter}
                 />
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* User Management Section */}
+        <div style={{ marginTop: '50px' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{
+              fontSize: '28px',
+              fontWeight: '600',
+              margin: 0,
+              color: '#1d1d1f'
+            }}>
+              User Management
+            </h2>
+            <button
+              onClick={() => setShowUsers(!showUsers)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: showUsers ? '#FF3B30' : '#4F46E5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '15px'
+              }}
+            >
+              {showUsers ? 'Hide Users' : `Show All Users (${allUsers.length})`}
+            </button>
+          </div>
+
+          {showUsers && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '30px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.06)'
+            }}>
+              {allUsers.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#6e6e73', fontSize: '17px', padding: '40px' }}>
+                  No users found.
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #f5f5f7' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#6e6e73', textTransform: 'uppercase' }}>Name</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#6e6e73', textTransform: 'uppercase' }}>Email</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#6e6e73', textTransform: 'uppercase' }}>Company</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#6e6e73', textTransform: 'uppercase' }}>Status</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '13px', fontWeight: '600', color: '#6e6e73', textTransform: 'uppercase' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allUsers.map(user => (
+                        <tr key={user.id} style={{ borderBottom: '1px solid #f5f5f7' }}>
+                          <td style={{ padding: '16px 12px', fontSize: '15px' }}>
+                            {user.first_name} {user.last_name}
+                            {user.is_admin && <span style={{ marginLeft: '8px', fontSize: '12px', padding: '2px 8px', backgroundColor: '#FFD700', color: '#000', borderRadius: '4px', fontWeight: '600' }}>👑 Admin</span>}
+                          </td>
+                          <td style={{ padding: '16px 12px', fontSize: '15px', color: '#6e6e73' }}>{user.email}</td>
+                          <td style={{ padding: '16px 12px', fontSize: '15px' }}>{user.company || '-'}</td>
+                          <td style={{ padding: '16px 12px', fontSize: '15px' }}>
+                            <span style={{
+                              padding: '4px 12px',
+                              backgroundColor: user.is_approved ? '#E8F5E9' : '#FFEBEE',
+                              color: user.is_approved ? '#2E7D32' : '#C62828',
+                              borderRadius: '12px',
+                              fontSize: '13px',
+                              fontWeight: '600'
+                            }}>
+                              {user.is_approved ? 'Approved' : 'Pending'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '16px 12px' }}>
+                            {!user.is_admin && (
+                              <button
+                                onClick={() => handleDeleteUser(user.id, user.email)}
+                                style={{
+                                  padding: '8px 16px',
+                                  backgroundColor: '#FF3B30',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '14px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
