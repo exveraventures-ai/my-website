@@ -25,15 +25,43 @@ export default function SetPassword() {
     setMessage('')
 
     try {
-      // Check if user has an approved account
-      const { data: profile } = await supabase
+      // Check if user has an approved account in users table
+      const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('is_approved')
         .eq('email', email)
         .single()
 
-      if (!profile) {
-        setError('No account found with this email. Please contact your admin or request access.')
+      // If no profile found, check access_requests table
+      if (!profile || profileError) {
+        const { data: accessRequest } = await supabase
+          .from('access_requests')
+          .select('status')
+          .eq('email', email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (!accessRequest) {
+          setError('No account found with this email. Please request access first.')
+          setLoading(false)
+          return
+        }
+
+        if (accessRequest.status === 'pending') {
+          setError('Your access request is pending approval. Please wait for admin approval.')
+          setLoading(false)
+          return
+        }
+
+        if (accessRequest.status === 'rejected') {
+          setError('Your access request was declined. Please contact support.')
+          setLoading(false)
+          return
+        }
+
+        // If approved in access_requests but no profile, something went wrong
+        setError('Your access was approved but profile setup is incomplete. Please contact support.')
         setLoading(false)
         return
       }
@@ -48,6 +76,7 @@ export default function SetPassword() {
       setStep(2)
       setMessage('✓ Account verified! Please set your password below.')
     } catch (error) {
+      console.error('Error checking email:', error)
       setError(`Error: ${error.message}`)
     }
 
@@ -74,35 +103,30 @@ export default function SetPassword() {
     }
 
     try {
-      // Sign up the user with the password
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      // Try to sign up the user with the password
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            email: email
+          }
         }
       })
 
       if (signUpError) {
-        // If user already exists, try to sign in
-        if (signUpError.message.includes('already registered')) {
-          // User exists but needs to reset password - use update instead
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
-          })
-          
-          if (signInError) {
-            // Password is wrong, they need to use forgot password
-            setError('An account already exists with this email. If you forgot your password, please use the "Forgot Password" option on the login page.')
-            setLoading(false)
-            return
-          }
+        // If user already exists in auth, they should use login/forgot password
+        if (signUpError.message.includes('already registered') || signUpError.message.includes('already been registered')) {
+          setError('An account already exists with this email. Please use the login page. If you forgot your password, use "Forgot Password".')
+          setLoading(false)
+          return
         } else {
           throw signUpError
         }
       }
 
+      console.log('Sign up successful:', signUpData)
       setMessage('✓ Password set successfully! Redirecting to login...')
       
       // Sign out and redirect to login
@@ -112,6 +136,7 @@ export default function SetPassword() {
       }, 2000)
       
     } catch (error) {
+      console.error('Error setting password:', error)
       setError(`Error: ${error.message}`)
     }
 
